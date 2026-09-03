@@ -1,0 +1,249 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  The experience is dark-first and cinematic: one base ink, three accent hues
+  per theme, and everything else derived from them. Changing `theme` in
+  src/celebration.config.ts re-skins the whole page through these five variables.
+*/
+:root {
+  --surface: #05040f;
+  --surface-soft: #0c0a1d;
+  --ink: #f6f4ff;
+  --c1: #7c5cff;
+  --c2: #22d3ee;
+  --c3: #f472b6;
+
+  --radius: 1.25rem;
+
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: color-mix(in oklab, var(--surface-soft) 82%, transparent);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-soft);
+  --popover-foreground: var(--ink);
+  --primary: var(--c1);
+  --primary-foreground: #0a0616;
+  --secondary: color-mix(in oklab, var(--ink) 12%, transparent);
+  --secondary-foreground: var(--ink);
+  --muted: color-mix(in oklab, var(--ink) 8%, transparent);
+  --muted-foreground: color-mix(in oklab, var(--ink) 62%, transparent);
+  --accent: color-mix(in oklab, var(--c2) 22%, transparent);
+  --accent-foreground: var(--ink);
+  --destructive: #ff6b6b;
+  --border: color-mix(in oklab, var(--ink) 14%, transparent);
+  --input: color-mix(in oklab, var(--ink) 18%, transparent);
+  --ring: var(--c2);
+}
+
+[data-theme="sunset"] {
+  --surface: #140a08;
+  --surface-soft: #23110d;
+  --ink: #fff4ec;
+  --c1: #ff8a3d;
+  --c2: #ff3d77;
+  --c3: #ffd166;
+}
+
+[data-theme="candy"] {
+  --surface: #0d0a14;
+  --surface-soft: #191227;
+  --ink: #fdf2ff;
+  --c1: #ff9ecd;
+  --c2: #7ce7d8;
+  --c3: #b79cff;
+}
+
+[data-theme="cosmos"] {
+  --surface: #03050e;
+  --surface-soft: #0a1024;
+  --ink: #eef3ff;
+  --c1: #6366f1;
+  --c2: #06b6d4;
+  --c3: #fbbf24;
+}
+
+[data-theme="orchard"] {
+  --surface: #05120c;
+  --surface-soft: #0a2018;
+  --ink: #f0fff7;
+  --c1: #34d399;
+  --c2: #fde68a;
+  --c3: #fb7185;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-c1: var(--c1);
+  --color-c2: var(--c2);
+  --color-c3: var(--c3);
+
+  --radius-sm: calc(var(--radius) - 8px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --animate-drift-slow: drift 26s ease-in-out infinite;
+  --animate-drift-fast: drift 17s ease-in-out infinite reverse;
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-shimmer: shimmer 7s linear infinite;
+  --animate-twinkle: twinkle 3.5s ease-in-out infinite;
+  --animate-flicker: flicker 160ms steps(2, end) infinite alternate;
+  --animate-sheen: sheen 2.6s ease-in-out infinite;
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(6%, -8%, 0) scale(1.12);
+  }
+  66% {
+    transform: translate3d(-7%, 5%, 0) scale(0.94);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: 200% center;
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes flicker {
+  from {
+    transform: scale(1) rotate(-2deg);
+    opacity: 0.92;
+  }
+  to {
+    transform: scale(1.08) rotate(2deg);
+    opacity: 1;
+  }
+}
+
+@keyframes sheen {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  60%,
+  100% {
+    transform: translateX(220%) skewX(-18deg);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    /* Chapters are full-viewport panels; the page itself never scrolls. */
+    overscroll-behavior: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--c2) 45%, transparent);
+    color: var(--ink);
+  }
+}
+
+@utility text-gradient {
+  background-image: linear-gradient(
+    100deg,
+    var(--c3) 0%,
+    var(--c1) 25%,
+    var(--c2) 50%,
+    var(--c1) 75%,
+    var(--c3) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: var(--animate-shimmer);
+}
+
+@utility glass {
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--ink) 10%, transparent),
+    color-mix(in oklab, var(--ink) 3%, transparent)
+  );
+  backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid color-mix(in oklab, var(--ink) 14%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--ink) 18%, transparent),
+    0 30px 80px -40px color-mix(in oklab, var(--c1) 60%, transparent);
+}
+
+/* Full-bleed vignette so the bright chapter content always sits on contrast. */
+@utility vignette {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 35%,
+    color-mix(in oklab, var(--surface) 85%, transparent) 100%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
