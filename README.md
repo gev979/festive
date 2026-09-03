@@ -105,8 +105,13 @@ src/
   press which opens the parcel, so it feels automatic. A one-time
   `♪ tap to mute` hint points at the header button, and muting is remembered: no
   later gesture restarts it. `music: false` ships the card silent.
-- **The microphone is opt-in.** Tapping the flames always works, so a denied
-  permission never dead-ends the experience.
+- **The microphone is opt-in.** Tapping the flames always works, so a refused
+  permission never dead-ends the experience — and the message says *why* it was
+  refused (blocked, no device, insecure origin) rather than guessing. Because
+  the "playback" audio session above is playback-*only*, the candles chapter
+  borrows the session as `play-and-record` for the duration of capture and hands
+  it back afterwards; the song pauses while the mic is open, which also stops the
+  music box being heard as breath.
 - **Navigation.** A labelled stepper under the header says which chapter you
   are on (`THE CANDLES · 3 OF 7`) and its segments jump back to anything already
   seen. The bottom bar holds the one forward button and an explicit back arrow;

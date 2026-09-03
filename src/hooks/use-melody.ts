@@ -160,17 +160,25 @@ async function renderMelody(): Promise<Blob | null> {
   }
 }
 
-/** Tell iOS this is media playback, not an incidental beep. */
-function declarePlaybackSession() {
+/**
+ * Declares what the page is doing with audio.
+ *
+ * "playback" is what makes the song audible through the iOS ringer switch —
+ * but it is playback *only*: while it is set, iOS refuses microphone capture,
+ * so anything that wants the mic has to switch to "play-and-record" first and
+ * switch back afterwards. See `holdForCapture` below.
+ */
+type SessionType = "playback" | "play-and-record";
+
+function declareSession(type: SessionType) {
   const session = (
     navigator as Navigator & { audioSession?: { type: string } }
   ).audioSession;
-  if (session) {
-    try {
-      session.type = "playback";
-    } catch {
-      // Read-only in some versions — harmless.
-    }
+  if (!session) return;
+  try {
+    session.type = type;
+  } catch {
+    // Read-only in some versions — harmless.
   }
 }
 
@@ -178,6 +186,7 @@ export function useMelody(enabled: boolean) {
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const urlRef = React.useRef<string | null>(null);
   const mutedByUserRef = React.useRef(false);
+  const capturingRef = React.useRef(false);
   const [playing, setPlaying] = React.useState(false);
   const [ready, setReady] = React.useState(false);
 
@@ -186,7 +195,7 @@ export function useMelody(enabled: boolean) {
     if (!enabled || typeof window === "undefined") return;
     let cancelled = false;
 
-    declarePlaybackSession();
+    declareSession("playback");
 
     void renderMelody().then((blob) => {
       if (cancelled || !blob) return;
@@ -221,7 +230,7 @@ export function useMelody(enabled: boolean) {
   const start = React.useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    declarePlaybackSession();
+    if (!capturingRef.current) declareSession("playback");
     void audio.play().catch(() => {
       // Refused until the visitor interacts — the unlock effect handles it.
     });
@@ -242,6 +251,27 @@ export function useMelody(enabled: boolean) {
   }, [playing, start, stop]);
 
   /**
+   * Hands the audio session over to whoever needs the microphone, and returns
+   * the function that hands it back. Pausing the song for the duration is a
+   * bonus: with echo cancellation deliberately off, the music box coming out of
+   * the speaker would otherwise be heard as breath.
+   */
+  const holdForCapture = React.useCallback(() => {
+    const audio = audioRef.current;
+    const wasPlaying = Boolean(audio && !audio.paused);
+
+    capturingRef.current = true;
+    audio?.pause();
+    declareSession("play-and-record");
+
+    return () => {
+      capturingRef.current = false;
+      declareSession("playback");
+      if (wasPlaying && !mutedByUserRef.current) start();
+    };
+  }, [start]);
+
+  /**
    * Browsers refuse to make noise before the visitor has interacted, so: try
    * immediately in case this browser allows it, otherwise start on the very
    * first touch, click or keypress anywhere — which is the press that opens the
@@ -259,7 +289,7 @@ export function useMelody(enabled: boolean) {
     const options = { capture: true, passive: true } as const;
 
     const unlock = () => {
-      if (mutedByUserRef.current) return;
+      if (mutedByUserRef.current || capturingRef.current) return;
       start();
       if (!audio.paused) detach();
     };
@@ -272,5 +302,5 @@ export function useMelody(enabled: boolean) {
     return detach;
   }, [enabled, ready, start]);
 
-  return { playing, start, stop, toggle, available: enabled };
+  return { playing, start, stop, toggle, holdForCapture, available: enabled };
 }

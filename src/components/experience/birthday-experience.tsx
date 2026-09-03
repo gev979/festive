@@ -171,6 +171,7 @@ export function BirthdayExperience({ config }: { config: BirthdayConfig }) {
                 next={next}
                 setGate={setGate}
                 playMusic={melody.start}
+                holdMusicForCapture={melody.holdForCapture}
               />
             </motion.section>
           </AnimatePresence>

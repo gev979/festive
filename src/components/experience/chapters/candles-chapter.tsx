@@ -11,7 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { ChapterProps } from "@/components/experience/types";
 
-type MicState = "idle" | "listening" | "denied" | "unsupported";
+type MicState =
+  | "idle"
+  | "listening"
+  | "denied"
+  | "unavailable"
+  | "insecure"
+  | "unsupported"
+  | "failed";
 
 /** Sustained loudness that counts as a breath rather than room noise. */
 const BLOW_THRESHOLD = 0.075;
@@ -22,7 +29,7 @@ const BLOW_COOLDOWN_MS = 260;
  * actually blowing into the microphone. The mic is strictly opt-in and the tap
  * path always works, so a denied permission never dead-ends the experience.
  */
-export function CandlesChapter({ config, setGate }: ChapterProps) {
+export function CandlesChapter({ config, setGate, holdMusicForCapture }: ChapterProps) {
   const total = config.candles;
   const [lit, setLit] = React.useState<boolean[]>(() => range(total).map(() => true));
   const [micState, setMicState] = React.useState<MicState>("idle");
@@ -33,6 +40,7 @@ export function CandlesChapter({ config, setGate }: ChapterProps) {
     ctx: AudioContext;
     stream: MediaStream;
     raf: number;
+    releaseSession: () => void;
   } | null>(null);
   const lastBlowRef = React.useRef(0);
   const cakeRef = React.useRef<HTMLDivElement>(null);
@@ -56,6 +64,7 @@ export function CandlesChapter({ config, setGate }: ChapterProps) {
     cancelAnimationFrame(audio.raf);
     audio.stream.getTracks().forEach((track) => track.stop());
     void audio.ctx.close();
+    audio.releaseSession();
     audioRef.current = null;
     setLevel(0);
     setMicState((state) => (state === "listening" ? "idle" : state));
@@ -66,10 +75,20 @@ export function CandlesChapter({ config, setGate }: ChapterProps) {
       stopMic();
       return;
     }
+    if (!window.isSecureContext) {
+      // getUserMedia is unavailable over plain http, e.g. a phone hitting a dev
+      // server by LAN address.
+      setMicState("insecure");
+      return;
+    }
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setMicState("unsupported");
       return;
     }
+
+    // iOS will not open the microphone while the session is playback-only, so
+    // the melody hands it over for the duration.
+    const releaseSession = holdMusicForCapture();
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -104,12 +123,20 @@ export function CandlesChapter({ config, setGate }: ChapterProps) {
         if (audio) audio.raf = requestAnimationFrame(tick);
       };
 
-      audioRef.current = { ctx, stream, raf: requestAnimationFrame(tick) };
+      audioRef.current = { ctx, stream, raf: requestAnimationFrame(tick), releaseSession };
       setMicState("listening");
-    } catch {
-      setMicState("denied");
+    } catch (error) {
+      releaseSession();
+      const name = (error as { name?: string } | null)?.name;
+      setMicState(
+        name === "NotAllowedError" || name === "SecurityError"
+          ? "denied"
+          : name === "NotFoundError" || name === "OverconstrainedError"
+            ? "unavailable"
+            : "failed",
+      );
     }
-  }, [extinguish, stopMic]);
+  }, [extinguish, holdMusicForCapture, stopMic]);
 
   React.useEffect(() => stopMic, [stopMic]);
 
@@ -193,14 +220,17 @@ export function CandlesChapter({ config, setGate }: ChapterProps) {
           </div>
         )}
 
-        {micState === "denied" && (
-          <p className="text-xs text-muted-foreground">
-            No microphone access — tapping the flames works just as well.
-          </p>
-        )}
-        {micState === "unsupported" && (
-          <p className="text-xs text-muted-foreground">
-            This browser will not share a microphone. Tap the flames instead.
+        {micState !== "idle" && micState !== "listening" && (
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {micState === "denied"
+              ? "Microphone blocked — tap the flames instead, it counts just the same."
+              : micState === "unavailable"
+                ? "No microphone found on this device. Tap the flames instead."
+                : micState === "insecure"
+                  ? "The microphone needs a secure (https) connection. Tap the flames instead."
+                  : micState === "unsupported"
+                    ? "This browser will not share a microphone. Tap the flames instead."
+                    : "The microphone would not open. Tap the flames instead."}
           </p>
         )}
       </div>
