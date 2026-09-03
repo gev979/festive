@@ -31,6 +31,13 @@ export type BirthdayConfig = {
   birthDate: Date | null;
   age: number | null;
   ordinalAge: string | null;
+  /**
+   * Which birthday is being celebrated. On the day itself that is the new age;
+   * opened early it is the one about to arrive — so a card opened two days
+   * before a 22nd never says "21st birthday".
+   */
+  birthdayNumber: number | null;
+  ordinalBirthday: string | null;
   daysAlive: number | null;
   daysUntilBirthday: number | null;
   isBirthdayToday: boolean;
@@ -154,6 +161,9 @@ export function getBirthdayConfig(now: Date = new Date()): BirthdayConfig {
     .map(({ title, body }) => ({ title: title.trim(), body: body.trim() }))
     .filter((highlight) => highlight.title || highlight.body);
 
+  const birthdayNumber =
+    age === null ? null : isBirthdayToday ? age : age + 1;
+
   return {
     name,
     nickname: CELEBRATION.nickname.trim() || (name.split(" ")[0] ?? name),
@@ -171,6 +181,8 @@ export function getBirthdayConfig(now: Date = new Date()): BirthdayConfig {
     birthDate,
     age,
     ordinalAge: age === null ? null : ordinal(age),
+    birthdayNumber,
+    ordinalBirthday: birthdayNumber === null ? null : ordinal(birthdayNumber),
     daysAlive,
     daysUntilBirthday,
     isBirthdayToday,

@@ -126,11 +126,11 @@ export function HeroChapter({ config }: ChapterProps) {
           transition={{ delay: 0.55 + config.name.length * 0.03, duration: 0.8 }}
           className="flex flex-col items-center gap-4"
         >
-          {config.age !== null ? (
+          {config.birthdayNumber !== null ? (
             <p className="text-lg text-foreground/85 sm:text-xl">
               Lap{" "}
               <span className="font-display text-2xl font-semibold text-[var(--c2)] sm:text-3xl">
-                {config.age}
+                {config.birthdayNumber}
               </span>{" "}
               around the sun, and you are still the most interesting thing in orbit.
             </p>
@@ -142,8 +142,8 @@ export function HeroChapter({ config }: ChapterProps) {
           )}
 
           <div className="flex flex-wrap items-center justify-center gap-2">
-            {config.ordinalAge && (
-              <Badge variant="outline">{config.ordinalAge} birthday</Badge>
+            {config.ordinalBirthday && (
+              <Badge variant="outline">{config.ordinalBirthday} birthday</Badge>
             )}
             {config.zodiac && (
               <Badge variant="outline">

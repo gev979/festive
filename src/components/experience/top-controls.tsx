@@ -26,6 +26,21 @@ export function TopControls({
   canRestart: boolean;
 }) {
   const [copied, setCopied] = React.useState(false);
+  const [musicHint, setMusicHint] = React.useState(false);
+  const hintShown = React.useRef(false);
+
+  // The song starts on its own, so say so once — otherwise the only clue that
+  // it can be silenced is an icon nobody was looking for.
+  React.useEffect(() => {
+    if (!melody.playing || hintShown.current) return;
+    hintShown.current = true;
+    const show = window.setTimeout(() => setMusicHint(true), 400);
+    const hide = window.setTimeout(() => setMusicHint(false), 5200);
+    return () => {
+      window.clearTimeout(show);
+      window.clearTimeout(hide);
+    };
+  }, [melody.playing]);
 
   const share = async () => {
     const url = typeof window === "undefined" ? "" : window.location.href;
@@ -115,23 +130,44 @@ export function TopControls({
         </Tooltip>
 
         {melody.available && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={melody.toggle}
-                className="glass"
-                aria-label={melody.playing ? "Mute the music box" : "Play the music box"}
-                aria-pressed={melody.playing}
-              >
-                {melody.playing ? <Volume2 className="text-[var(--c2)]" /> : <VolumeX />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {melody.playing ? "Mute (M)" : "Music box (M)"}
-            </TooltipContent>
-          </Tooltip>
+          <div className="relative">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={melody.toggle}
+                  className="glass relative"
+                  aria-label={melody.playing ? "Mute the music box" : "Play the music box"}
+                  aria-pressed={melody.playing}
+                >
+                  {melody.playing ? <Volume2 className="text-[var(--c2)]" /> : <VolumeX />}
+                  {musicHint && (
+                    <span
+                      aria-hidden
+                      className="absolute -inset-0.5 animate-ping rounded-full border border-[var(--c2)]"
+                    />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {melody.playing ? "Mute (M)" : "Music box (M)"}
+              </TooltipContent>
+            </Tooltip>
+
+            <AnimatePresence>
+              {musicHint && (
+                <motion.span
+                  initial={{ opacity: 0, y: -6, scale: 0.94 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.94 }}
+                  className="glass pointer-events-none absolute top-24 right-0 z-40 rounded-full px-3 py-1.5 font-mono text-[0.6rem] tracking-[0.16em] whitespace-nowrap text-muted-foreground uppercase"
+                >
+                  ♪ tap to mute
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </div>
         )}
       </motion.div>
     </header>

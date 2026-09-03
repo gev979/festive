@@ -35,8 +35,8 @@ function resolveBaseUrl(configured: string | null): URL | undefined {
 export async function generateMetadata(): Promise<Metadata> {
   const config = getBirthdayConfig();
   const title = `Happy Birthday, ${config.name}`;
-  const description = config.ordinalAge
-    ? `An interactive card for ${config.nickname}'s ${config.ordinalAge} birthday. Open the parcel, blow out the candles, make a wish.`
+  const description = config.ordinalBirthday
+    ? `An interactive card for ${config.nickname}'s ${config.ordinalBirthday} birthday. Open the parcel, blow out the candles, make a wish.`
     : `An interactive birthday card for ${config.nickname}. Open the parcel, blow out the candles, make a wish.`;
 
   return {

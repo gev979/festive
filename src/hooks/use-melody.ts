@@ -96,6 +96,7 @@ function createEngine(): Engine {
 
 export function useMelody(enabled: boolean) {
   const engineRef = React.useRef<Engine | null>(null);
+  const mutedByUserRef = React.useRef(false);
   const [playing, setPlaying] = React.useState(false);
 
   const schedule = React.useCallback(() => {
@@ -142,17 +143,62 @@ export function useMelody(enabled: boolean) {
     }
 
     const engine = engineRef.current;
-    void engine.ctx.resume();
     engine.master.gain.cancelScheduledValues(engine.ctx.currentTime);
     engine.master.gain.setTargetAtTime(0.5, engine.ctx.currentTime, 0.4);
     if (!engine.timer) schedule();
-    setPlaying(true);
+
+    // The speaker icon must tell the truth: a context that is still suspended
+    // (autoplay refused, waiting for a gesture) is not playing yet.
+    const sync = () => setPlaying(engine.ctx.state === "running" && engine.timer !== null);
+    engine.ctx.onstatechange = sync;
+    void engine.ctx.resume().then(sync, () => {});
+    sync();
   }, [enabled, schedule]);
 
   const toggle = React.useCallback(() => {
-    if (playing) stop();
-    else start();
+    if (playing) {
+      mutedByUserRef.current = true;
+      stop();
+    } else {
+      mutedByUserRef.current = false;
+      start();
+    }
   }, [playing, start, stop]);
+
+  /**
+   * Browsers refuse to make noise before the visitor has interacted, and iOS
+   * additionally insists the AudioContext is resumed *synchronously inside* a
+   * gesture handler — a resume from a rAF or promise callback is ignored, which
+   * is why the song used to stay silent until something else (granting the
+   * microphone) happened to unlock audio.
+   *
+   * So: try immediately in case the policy allows it, and otherwise start on the
+   * very first touch, click or keypress anywhere on the page. From the visitor's
+   * side the song simply begins on its own; the header button mutes it.
+   */
+  React.useEffect(() => {
+    if (!enabled) return;
+
+    start();
+    if (engineRef.current?.ctx.state === "running") return;
+
+    const events = ["pointerdown", "touchstart", "keydown"] as const;
+    // Capture phase, so this runs before the seal's own handlers.
+    const options = { capture: true, passive: true } as const;
+
+    const unlock = () => {
+      if (mutedByUserRef.current) return;
+      start();
+      if (engineRef.current?.ctx.state === "running") detach();
+    };
+
+    const detach = () => {
+      events.forEach((event) => window.removeEventListener(event, unlock, options));
+    };
+
+    events.forEach((event) => window.addEventListener(event, unlock, options));
+    return detach;
+  }, [enabled, start]);
 
   React.useEffect(() => {
     return () => {

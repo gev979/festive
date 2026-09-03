@@ -112,7 +112,7 @@ export default async function OpengraphImage() {
               opacity: 0.85,
             }}
           >
-            {config.ordinalAge ? (
+            {config.ordinalBirthday ? (
               <span
                 style={{
                   border: `2px solid ${palette.c3}`,
@@ -120,7 +120,7 @@ export default async function OpengraphImage() {
                   padding: "10px 26px",
                 }}
               >
-                {config.ordinalAge} lap around the sun
+                {config.ordinalBirthday} lap around the sun
               </span>
             ) : null}
             <span
