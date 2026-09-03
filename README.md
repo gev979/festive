@@ -96,13 +96,15 @@ src/
 - **No media assets.** The soundtrack is synthesized with the Web Audio API and
   the cake, envelope, and balloons are inline SVG, so the deploy is tiny and
   nothing 404s.
-- **The song starts on its own.** Browsers refuse to play audio before the
-  visitor interacts, and iOS additionally requires the AudioContext to be
-  resumed *synchronously inside* a gesture handler. So the melody is armed on
-  mount and unlocks on the very first touch, click or keypress anywhere on the
-  page — which is the press that opens the parcel. A one-time `♪ tap to mute`
-  hint points at the header button, and muting is remembered: no later gesture
-  restarts it. Set `music: false` in the config to ship it silent.
+- **The song starts on its own.** The melody is rendered once in the browser
+  with an `OfflineAudioContext`, encoded to a WAV blob and played by a looping
+  `<audio>` element. That indirection matters on iOS: audio straight out of a
+  Web Audio graph is treated as *ambient* and the hardware ringer switch mutes
+  it, while a media element plays through the silent switch at the volume the
+  phone's buttons control. Playback still needs one interaction — that is the
+  press which opens the parcel, so it feels automatic. A one-time
+  `♪ tap to mute` hint points at the header button, and muting is remembered: no
+  later gesture restarts it. `music: false` ships the card silent.
 - **The microphone is opt-in.** Tapping the flames always works, so a denied
   permission never dead-ends the experience.
 - **Navigation.** A labelled stepper under the header says which chapter you

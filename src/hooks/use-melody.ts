@@ -3,9 +3,21 @@
 import * as React from "react";
 
 /**
- * "Happy Birthday" as a music box, synthesized with the Web Audio API.
- * No audio files ship with the project, which keeps the deploy tiny and means
- * the soundtrack works offline and never 404s.
+ * "Happy Birthday" as a music box — synthesized in the browser, so no audio
+ * file ships with the project.
+ *
+ * Why this renders to a WAV instead of just playing live through an
+ * AudioContext: on iOS, audio coming straight out of a Web Audio graph counts
+ * as *ambient* sound and the hardware ringer/silent switch mutes it outright.
+ * (Granting microphone access used to make the song audible purely as a side
+ * effect: getUserMedia flips iOS into a play-and-record session, which routes
+ * output through the media channel.)
+ *
+ * So the melody is rendered once with an OfflineAudioContext and handed to a
+ * plain <audio> element. Media elements play on the media channel — through the
+ * silent switch, at the volume the phone's buttons control — which is what
+ * anyone opening a birthday card expects. `navigator.audioSession` is set to
+ * "playback" as well, where supported, to declare the intent explicitly.
  */
 
 const NOTES: Record<string, number> = {
@@ -19,23 +31,26 @@ const NOTES: Record<string, number> = {
   G5: 783.99,
 };
 
-// [note, beats] — the classic four phrases.
+// [note, beats] — the classic four phrases, with a long rest so the loop seam
+// falls in silence instead of cutting off the last note's tail.
 const MELODY: Array<[keyof typeof NOTES | "rest", number]> = [
   ["G4", 0.75], ["G4", 0.25], ["A4", 1], ["G4", 1], ["C5", 1], ["B4", 1.75], ["rest", 0.25],
   ["G4", 0.75], ["G4", 0.25], ["A4", 1], ["G4", 1], ["D5", 1], ["C5", 1.75], ["rest", 0.25],
   ["G4", 0.75], ["G4", 0.25], ["G5", 1], ["E5", 1], ["C5", 1], ["B4", 1], ["A4", 1.75], ["rest", 0.25],
-  ["F5", 0.75], ["F5", 0.25], ["E5", 1], ["C5", 1], ["D5", 1], ["C5", 2], ["rest", 1],
+  ["F5", 0.75], ["F5", 0.25], ["E5", 1], ["C5", 1], ["D5", 1], ["C5", 2], ["rest", 3],
 ];
 
 const BEAT = 0.42; // seconds per beat
+/** 22.05 kHz is plenty: the tone is low-passed at 4.2 kHz, and it halves the blob. */
+const SAMPLE_RATE = 22_050;
 
-type Engine = {
-  ctx: AudioContext;
-  master: GainNode;
-  timer: number | null;
-};
-
-function pluck(ctx: AudioContext, destination: AudioNode, freq: number, at: number, beats: number) {
+function pluck(
+  ctx: BaseAudioContext,
+  destination: AudioNode,
+  freq: number,
+  at: number,
+  beats: number,
+) {
   const duration = Math.min(beats * BEAT * 2.2, 1.9);
 
   const bell = ctx.createOscillator();
@@ -69,16 +84,11 @@ function pluck(ctx: AudioContext, destination: AudioNode, freq: number, at: numb
   partial.stop(at + duration + 0.05);
 }
 
-function createEngine(): Engine {
-  const AudioCtx =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-  const ctx = new AudioCtx();
-
+/** Master bus with a feedback delay: a cheap room around the music box. */
+function createBus(ctx: BaseAudioContext): AudioNode {
   const master = ctx.createGain();
-  master.gain.value = 0;
+  master.gain.value = 0.9;
 
-  // Feedback delay: cheap reverb that makes the box sound like it is in a room.
   const delay = ctx.createDelay(0.6);
   delay.delayTime.value = 0.28;
   const feedback = ctx.createGain();
@@ -91,69 +101,135 @@ function createEngine(): Engine {
   delay.connect(feedback).connect(delay);
   delay.connect(wet).connect(ctx.destination);
 
-  return { ctx, master, timer: null };
+  return master;
+}
+
+function encodeWav(buffer: AudioBuffer): Blob {
+  const samples = buffer.getChannelData(0);
+  const view = new DataView(new ArrayBuffer(44 + samples.length * 2));
+
+  const writeText = (offset: number, text: string) => {
+    for (let i = 0; i < text.length; i += 1) view.setUint8(offset + i, text.charCodeAt(i));
+  };
+
+  writeText(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeText(8, "WAVE");
+  writeText(12, "fmt ");
+  view.setUint32(16, 16, true); // PCM chunk size
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, buffer.sampleRate, true);
+  view.setUint32(28, buffer.sampleRate * 2, true); // byte rate
+  view.setUint16(32, 2, true); // block align
+  view.setUint16(34, 16, true); // bits per sample
+  writeText(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+
+  for (let i = 0; i < samples.length; i += 1) {
+    const clamped = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(44 + i * 2, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
+  }
+
+  return new Blob([view], { type: "audio/wav" });
+}
+
+async function renderMelody(): Promise<Blob | null> {
+  const OfflineCtx =
+    window.OfflineAudioContext ||
+    (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext })
+      .webkitOfflineAudioContext;
+  if (!OfflineCtx) return null;
+
+  const beats = MELODY.reduce((total, [, value]) => total + value, 0);
+  const seconds = beats * BEAT;
+
+  try {
+    const ctx = new OfflineCtx(1, Math.ceil(seconds * SAMPLE_RATE), SAMPLE_RATE);
+    const bus = createBus(ctx);
+
+    let cursor = 0;
+    for (const [note, value] of MELODY) {
+      if (note !== "rest") pluck(ctx, bus, NOTES[note], cursor, value);
+      cursor += value * BEAT;
+    }
+
+    return encodeWav(await ctx.startRendering());
+  } catch {
+    return null; // No Web Audio: the page is simply silent.
+  }
+}
+
+/** Tell iOS this is media playback, not an incidental beep. */
+function declarePlaybackSession() {
+  const session = (
+    navigator as Navigator & { audioSession?: { type: string } }
+  ).audioSession;
+  if (session) {
+    try {
+      session.type = "playback";
+    } catch {
+      // Read-only in some versions — harmless.
+    }
+  }
 }
 
 export function useMelody(enabled: boolean) {
-  const engineRef = React.useRef<Engine | null>(null);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const urlRef = React.useRef<string | null>(null);
   const mutedByUserRef = React.useRef(false);
   const [playing, setPlaying] = React.useState(false);
+  const [ready, setReady] = React.useState(false);
 
-  const schedule = React.useCallback(() => {
-    // `run` is a hoisted declaration so the loop can re-arm itself without the
-    // callback having to close over its own identity.
-    function run() {
-      const engine = engineRef.current;
-      if (!engine) return;
-      const { ctx, master } = engine;
-      let cursor = ctx.currentTime + 0.12;
+  // Render the loop once, up front, so the first tap has audio to play.
+  React.useEffect(() => {
+    if (!enabled || typeof window === "undefined") return;
+    let cancelled = false;
 
-      for (const [note, beats] of MELODY) {
-        if (note !== "rest") pluck(ctx, master, NOTES[note], cursor, beats);
-        cursor += beats * BEAT;
-      }
+    declarePlaybackSession();
 
-      const loopIn = (cursor - ctx.currentTime) * 1000;
-      engine.timer = window.setTimeout(run, loopIn);
-    }
+    void renderMelody().then((blob) => {
+      if (cancelled || !blob) return;
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.loop = true;
+      audio.volume = 0.55;
+      audio.preload = "auto";
+      // Required on iOS so playback is not treated as a fullscreen video.
+      audio.setAttribute("playsinline", "");
+      audio.addEventListener("pause", () => setPlaying(false));
+      audio.addEventListener("play", () => setPlaying(true));
+      // Kept in the DOM (invisible, no controls) rather than detached: iOS is
+      // more consistent about treating an attached element as media playback.
+      audio.hidden = true;
+      document.body.appendChild(audio);
+      urlRef.current = url;
+      audioRef.current = audio;
+      setReady(true);
+    });
 
-    run();
+    return () => {
+      cancelled = true;
+      audioRef.current?.pause();
+      audioRef.current?.remove();
+      audioRef.current = null;
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
+    };
+  }, [enabled]);
+
+  const start = React.useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    declarePlaybackSession();
+    void audio.play().catch(() => {
+      // Refused until the visitor interacts — the unlock effect handles it.
+    });
   }, []);
 
   const stop = React.useCallback(() => {
-    const engine = engineRef.current;
-    if (!engine) return;
-    if (engine.timer) window.clearTimeout(engine.timer);
-    engine.timer = null;
-    engine.master.gain.cancelScheduledValues(engine.ctx.currentTime);
-    engine.master.gain.setTargetAtTime(0, engine.ctx.currentTime, 0.15);
-    setPlaying(false);
+    audioRef.current?.pause();
   }, []);
-
-  const start = React.useCallback(() => {
-    if (!enabled) return;
-    if (typeof window === "undefined") return;
-
-    if (!engineRef.current) {
-      try {
-        engineRef.current = createEngine();
-      } catch {
-        return; // Web Audio unavailable — the page simply stays silent.
-      }
-    }
-
-    const engine = engineRef.current;
-    engine.master.gain.cancelScheduledValues(engine.ctx.currentTime);
-    engine.master.gain.setTargetAtTime(0.5, engine.ctx.currentTime, 0.4);
-    if (!engine.timer) schedule();
-
-    // The speaker icon must tell the truth: a context that is still suspended
-    // (autoplay refused, waiting for a gesture) is not playing yet.
-    const sync = () => setPlaying(engine.ctx.state === "running" && engine.timer !== null);
-    engine.ctx.onstatechange = sync;
-    void engine.ctx.resume().then(sync, () => {});
-    sync();
-  }, [enabled, schedule]);
 
   const toggle = React.useCallback(() => {
     if (playing) {
@@ -166,30 +242,26 @@ export function useMelody(enabled: boolean) {
   }, [playing, start, stop]);
 
   /**
-   * Browsers refuse to make noise before the visitor has interacted, and iOS
-   * additionally insists the AudioContext is resumed *synchronously inside* a
-   * gesture handler — a resume from a rAF or promise callback is ignored, which
-   * is why the song used to stay silent until something else (granting the
-   * microphone) happened to unlock audio.
-   *
-   * So: try immediately in case the policy allows it, and otherwise start on the
-   * very first touch, click or keypress anywhere on the page. From the visitor's
-   * side the song simply begins on its own; the header button mutes it.
+   * Browsers refuse to make noise before the visitor has interacted, so: try
+   * immediately in case this browser allows it, otherwise start on the very
+   * first touch, click or keypress anywhere — which is the press that opens the
+   * parcel. From the visitor's side the song simply begins on its own.
    */
   React.useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !ready) return;
+
+    const audio = audioRef.current;
+    if (!audio) return;
 
     start();
-    if (engineRef.current?.ctx.state === "running") return;
 
     const events = ["pointerdown", "touchstart", "keydown"] as const;
-    // Capture phase, so this runs before the seal's own handlers.
     const options = { capture: true, passive: true } as const;
 
     const unlock = () => {
       if (mutedByUserRef.current) return;
       start();
-      if (engineRef.current?.ctx.state === "running") detach();
+      if (!audio.paused) detach();
     };
 
     const detach = () => {
@@ -198,17 +270,7 @@ export function useMelody(enabled: boolean) {
 
     events.forEach((event) => window.addEventListener(event, unlock, options));
     return detach;
-  }, [enabled, start]);
-
-  React.useEffect(() => {
-    return () => {
-      const engine = engineRef.current;
-      if (!engine) return;
-      if (engine.timer) window.clearTimeout(engine.timer);
-      void engine.ctx.close();
-      engineRef.current = null;
-    };
-  }, []);
+  }, [enabled, ready, start]);
 
   return { playing, start, stop, toggle, available: enabled };
 }
