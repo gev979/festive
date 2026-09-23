@@ -3,9 +3,17 @@
 import * as React from "react";
 import { animate, useInView, useReducedMotion } from "motion/react";
 
+import { useI18n } from "@/components/experience/i18n";
+
 /**
- * Counts up to `value` when it scrolls into view. Big numbers get a thousands
- * separator so "13,240 days" stays readable at a glance.
+ * Past a million the exact digits stop meaning anything and start overflowing
+ * the tile, so from here on counters land on "1.13B" instead.
+ */
+export const COMPACT_FROM = 1_000_000;
+
+/**
+ * Counts up to `value` when it scrolls into view. Big numbers get the
+ * language's thousands separator so "13,240 days" stays readable at a glance.
  */
 export function AnimatedNumber({
   value,
@@ -21,21 +29,20 @@ export function AnimatedNumber({
   const ref = React.useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.4 });
   const reduceMotion = useReducedMotion();
+  const { locale } = useI18n();
 
   React.useEffect(() => {
     const node = ref.current;
     if (!node) return;
 
-    // Past a million the exact digits stop meaning anything and start
-    // overflowing the tile, so those counters land on "1.13B" instead.
-    const compact = Math.abs(value) >= 1_000_000;
+    const compact = Math.abs(value) >= COMPACT_FROM;
     const format = (n: number) =>
       compact
-        ? Math.round(n).toLocaleString("en-US", {
+        ? Math.round(n).toLocaleString(locale, {
             notation: "compact",
             maximumFractionDigits: 2,
           })
-        : Math.round(n).toLocaleString("en-US");
+        : Math.round(n).toLocaleString(locale);
 
     if (reduceMotion || !inView) {
       if (reduceMotion) node.textContent = format(value);
@@ -52,7 +59,7 @@ export function AnimatedNumber({
     });
 
     return () => controls.stop();
-  }, [delay, duration, inView, reduceMotion, value]);
+  }, [delay, duration, inView, locale, reduceMotion, value]);
 
   return (
     <span ref={ref} className={className}>

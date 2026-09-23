@@ -3,10 +3,13 @@
 import * as React from "react";
 import { motion, useReducedMotion } from "motion/react";
 
+import { fill } from "@/i18n/format";
 import { burst, emojiBurst } from "@/lib/confetti";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Accented } from "@/components/experience/accented";
 import { Balloons } from "@/components/experience/balloons";
+import { useI18n } from "@/components/experience/i18n";
 import type { ChapterProps } from "@/components/experience/types";
 
 /**
@@ -26,6 +29,7 @@ function letters(name: string) {
  * from below with a shimmer running through it, over rising balloons.
  */
 export function HeroChapter({ config }: ChapterProps) {
+  const { t } = useI18n();
   const reduceMotion = useReducedMotion();
   const words = React.useMemo(() => letters(config.name), [config.name]);
 
@@ -69,7 +73,7 @@ export function HeroChapter({ config }: ChapterProps) {
           transition={{ delay: 0.15, duration: 0.6 }}
         >
           <Badge variant="accent">
-            {config.isBirthdayToday ? "It is officially today" : "Consider this a warm-up"}
+            {config.isBirthdayToday ? t.hero.today : t.hero.early}
           </Badge>
         </motion.div>
 
@@ -80,7 +84,7 @@ export function HeroChapter({ config }: ChapterProps) {
           />
 
           <p className="font-mono text-xs tracking-[0.42em] text-muted-foreground uppercase sm:text-sm">
-            happy birthday
+            {t.hero.kicker}
           </p>
 
           {/* The clamp lives on the h1 so the inter-word gap scales with it. */}
@@ -126,24 +130,25 @@ export function HeroChapter({ config }: ChapterProps) {
           transition={{ delay: 0.55 + config.name.length * 0.03, duration: 0.8 }}
           className="flex flex-col items-center gap-4"
         >
-          {config.birthdayNumber !== null ? (
-            <p className="text-lg text-foreground/85 sm:text-xl">
-              Lap{" "}
-              <span className="font-display text-2xl font-semibold text-[var(--c2)] sm:text-3xl">
-                {config.birthdayNumber}
-              </span>{" "}
-              around the sun, and you are still the most interesting thing in orbit.
-            </p>
-          ) : (
-            <p className="text-lg text-foreground/85 sm:text-xl">
-              Another lap around the sun, and you are still the most interesting thing in
-              orbit.
-            </p>
-          )}
+          <p className="text-lg text-foreground/85 sm:text-xl">
+            {config.birthdayNumber !== null ? (
+              <Accented
+                text={fill(t.hero.lap, {
+                  n: config.birthdayNumber,
+                  ordinal: config.ordinalBirthday ?? "",
+                })}
+                className="font-display text-2xl font-semibold text-[var(--c2)] sm:text-3xl"
+              />
+            ) : (
+              t.hero.lapUnknown
+            )}
+          </p>
 
           <div className="flex flex-wrap items-center justify-center gap-2">
             {config.ordinalBirthday && (
-              <Badge variant="outline">{config.ordinalBirthday} birthday</Badge>
+              <Badge variant="outline">
+                {fill(t.hero.birthday, { ordinal: config.ordinalBirthday })}
+              </Badge>
             )}
             {config.zodiac && (
               <Badge variant="outline">
@@ -151,7 +156,9 @@ export function HeroChapter({ config }: ChapterProps) {
               </Badge>
             )}
             {config.weekdayBorn && (
-              <Badge variant="outline">born on a {config.weekdayBorn}</Badge>
+              <Badge variant="outline">
+                {fill(t.hero.bornOn, { weekday: config.weekdayBorn })}
+              </Badge>
             )}
           </div>
         </motion.div>

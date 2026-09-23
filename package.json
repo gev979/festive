@@ -2,7 +2,7 @@
   "name": "festive",
   "version": "1.0.0",
   "private": true,
-  "description": "A chapter-driven interactive birthday experience. The birthday person is configured entirely through environment variables.",
+  "description": "A chapter-driven interactive birthday card: one per person, in English, Armenian and Russian.",
   "engines": {
     "node": ">=20.9.0"
   },

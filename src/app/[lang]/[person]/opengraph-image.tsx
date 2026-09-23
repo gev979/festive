@@ -1,22 +1,33 @@
 import { ImageResponse } from "next/og";
 
-import { getBirthdayConfig } from "@/lib/config";
+import { getMessages } from "@/i18n";
+import { fill } from "@/i18n/format";
+import { fontsFor } from "@/lib/og-fonts";
 import { PALETTES } from "@/lib/palette";
+import { cardParams, loadCard, type CardParams } from "./card";
 
 export const alt = "An interactive birthday card";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+export const generateStaticParams = cardParams;
+
 /** Matches the page: the preview mentions the age, so it cannot be frozen. */
 export const revalidate = 900;
 
 /**
- * Link previews are generated from the same config as the page, so sharing
- * the URL in a chat already shows the right name and theme.
+ * Link previews are generated from the same card as the page, so sharing the
+ * link in a chat already shows the right name, language and theme.
  */
-export default async function OpengraphImage() {
-  const config = getBirthdayConfig();
+export default async function OpengraphImage({ params }: { params: CardParams }) {
+  const config = await loadCard(params);
+  const { meta } = getMessages(config.locale);
   const palette = PALETTES[config.theme];
+  const lap = config.ordinalBirthday
+    ? fill(meta.imageLap, { ordinal: config.ordinalBirthday })
+    : null;
+  const from = fill(meta.imageFrom, { from: config.from });
+  const fonts = await fontsFor([meta.imageKicker, config.name, lap, from].join(" "));
 
   return new ImageResponse(
     (
@@ -89,7 +100,7 @@ export default async function OpengraphImage() {
               opacity: 0.7,
             }}
           >
-            happy birthday
+            {meta.imageKicker}
           </div>
           <div
             style={{
@@ -112,7 +123,7 @@ export default async function OpengraphImage() {
               opacity: 0.85,
             }}
           >
-            {config.ordinalBirthday ? (
+            {lap ? (
               <span
                 style={{
                   border: `2px solid ${palette.c3}`,
@@ -120,7 +131,7 @@ export default async function OpengraphImage() {
                   padding: "10px 26px",
                 }}
               >
-                {config.ordinalBirthday} lap around the sun
+                {lap}
               </span>
             ) : null}
             <span
@@ -130,12 +141,12 @@ export default async function OpengraphImage() {
                 padding: "10px 26px",
               }}
             >
-              from {config.from}
+              {from}
             </span>
           </div>
         </div>
       </div>
     ),
-    size,
+    { ...size, fonts },
   );
 }

@@ -7,6 +7,7 @@ import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } fro
 import { cannons, emojiBurst } from "@/lib/confetti";
 import { cn, range, seeded } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/components/experience/i18n";
 import type { ChapterProps } from "@/components/experience/types";
 
 const HOLD_MS = 750;
@@ -29,6 +30,7 @@ function buzz(pattern: number | number[]) {
  * still has not got in after a few seconds, a plain one-tap button appears.
  */
 export function SealChapter({ config, next, playMusic }: ChapterProps) {
+  const { t } = useI18n();
   const [progress, setProgress] = React.useState(0);
   const [holding, setHolding] = React.useState(false);
   const [misses, setMisses] = React.useState(0);
@@ -115,12 +117,12 @@ export function SealChapter({ config, next, playMusic }: ChapterProps) {
   };
 
   const label = broken
-    ? "Opening…"
+    ? t.seal.opening
     : holding
-      ? "Keep holding…"
+      ? t.seal.holding
       : misses > 0
-        ? "Hold it a moment longer"
-        : "Hold to open";
+        ? t.seal.missed
+        : t.seal.hold;
 
   return (
     <div className="flex w-full max-w-md flex-col items-center gap-6 text-center sm:max-w-xl sm:gap-8">
@@ -131,7 +133,7 @@ export function SealChapter({ config, next, playMusic }: ChapterProps) {
       >
         <Badge variant="outline" className="gap-2">
           <Sparkles className="size-3" />
-          {config.isBirthdayToday ? "Delivered today" : "Arrived early"}
+          {config.isBirthdayToday ? t.seal.today : t.seal.early}
         </Badge>
       </motion.div>
 
@@ -195,7 +197,7 @@ export function SealChapter({ config, next, playMusic }: ChapterProps) {
 
           <div className="relative z-10 mt-16 space-y-1 text-left sm:mt-20">
             <p className="font-mono text-[0.6rem] tracking-[0.28em] text-muted-foreground uppercase">
-              addressed to
+              {t.seal.to}
             </p>
             <p className="font-display text-2xl leading-tight font-semibold text-balance sm:text-3xl">
               {config.name}
@@ -205,7 +207,7 @@ export function SealChapter({ config, next, playMusic }: ChapterProps) {
           <div className="relative z-10 flex items-end justify-between gap-4 text-left">
             <div>
               <p className="font-mono text-[0.6rem] tracking-[0.28em] text-muted-foreground uppercase">
-                from
+                {t.seal.from}
               </p>
               <p className="mt-1 max-w-[16ch] text-sm leading-snug text-foreground/80">
                 {config.from}
@@ -357,7 +359,7 @@ export function SealChapter({ config, next, playMusic }: ChapterProps) {
             !showRescue && "pointer-events-none",
           )}
         >
-          or just tap here to open it
+          {t.seal.rescue}
         </motion.button>
       </motion.div>
 

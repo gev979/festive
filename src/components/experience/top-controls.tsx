@@ -5,8 +5,10 @@ import { Check, RotateCcw, Share2, Volume2, VolumeX } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 import type { BirthdayConfig } from "@/lib/config";
+import { fill } from "@/i18n/format";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useI18n } from "@/components/experience/i18n";
 
 type Melody = {
   playing: boolean;
@@ -25,6 +27,7 @@ export function TopControls({
   onRestart: () => void;
   canRestart: boolean;
 }) {
+  const { t } = useI18n();
   const [copied, setCopied] = React.useState(false);
   const [musicHint, setMusicHint] = React.useState(false);
   const hintShown = React.useRef(false);
@@ -45,8 +48,10 @@ export function TopControls({
   const share = async () => {
     const url = typeof window === "undefined" ? "" : window.location.href;
     const payload = {
-      title: `Happy birthday, ${config.name}`,
-      text: `A little something for ${config.nickname} 🎂`,
+      title: fill(t.top.shareTitle, { name: config.name }),
+      text: config.personal
+        ? fill(t.top.shareText, { name: config.nickname })
+        : t.top.shareTextEveryone,
       url,
     };
 
@@ -79,7 +84,7 @@ export function TopControls({
           <span className="relative inline-flex size-2 rounded-full bg-[var(--c2)]" />
         </span>
         <span className="font-mono text-[0.62rem] tracking-[0.2em] text-muted-foreground uppercase">
-          for {config.nickname}
+          {config.personal ? fill(t.top.pill, { name: config.nickname }) : t.top.pillEveryone}
         </span>
       </motion.div>
 
@@ -103,12 +108,12 @@ export function TopControls({
                     size="icon"
                     onClick={onRestart}
                     className="glass"
-                    aria-label="Start the experience over"
+                    aria-label={t.top.restart}
                   >
                     <RotateCcw />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">Start over</TooltipContent>
+                <TooltipContent side="bottom">{t.top.restartTip}</TooltipContent>
               </Tooltip>
             </motion.div>
           )}
@@ -121,12 +126,12 @@ export function TopControls({
               size="icon"
               onClick={share}
               className="glass"
-              aria-label="Share this page"
+              aria-label={t.top.share}
             >
               {copied ? <Check className="text-[var(--c2)]" /> : <Share2 />}
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">{copied ? "Link copied" : "Share"}</TooltipContent>
+          <TooltipContent side="bottom">{copied ? t.top.copied : t.top.shareTip}</TooltipContent>
         </Tooltip>
 
         {melody.available && (
@@ -138,7 +143,7 @@ export function TopControls({
                   size="icon"
                   onClick={melody.toggle}
                   className="glass relative"
-                  aria-label={melody.playing ? "Mute the music box" : "Play the music box"}
+                  aria-label={melody.playing ? t.top.mute : t.top.play}
                   aria-pressed={melody.playing}
                 >
                   {melody.playing ? <Volume2 className="text-[var(--c2)]" /> : <VolumeX />}
@@ -151,7 +156,7 @@ export function TopControls({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                {melody.playing ? "Mute (M)" : "Music box (M)"}
+                {melody.playing ? t.top.muteTip : t.top.playTip}
               </TooltipContent>
             </Tooltip>
 
@@ -163,7 +168,7 @@ export function TopControls({
                   exit={{ opacity: 0, y: -6, scale: 0.94 }}
                   className="glass pointer-events-none absolute top-24 right-0 z-40 rounded-full px-3 py-1.5 font-mono text-[0.6rem] tracking-[0.16em] whitespace-nowrap text-muted-foreground uppercase"
                 >
-                  ♪ tap to mute
+                  {t.top.musicHint}
                 </motion.span>
               )}
             </AnimatePresence>

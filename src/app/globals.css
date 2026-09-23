@@ -5,10 +5,16 @@
 
 /*
   The experience is dark-first and cinematic: one base ink, three accent hues
-  per theme, and everything else derived from them. Changing `theme` in
-  src/celebration.config.ts re-skins the whole page through these five variables.
+  per theme, and everything else derived from them. A person's `theme`
+  re-skins the whole page through these five variables.
 */
 :root {
+  /* Each language draws with faces that contain its script: Fraunces has no
+     Cyrillic, and none of the Latin faces has Armenian. */
+  --face-sans: var(--font-geist);
+  --face-display: var(--font-fraunces);
+  --face-mono: var(--font-geist-mono);
+
   --surface: #05040f;
   --surface-soft: #0c0a1d;
   --ink: #f6f4ff;
@@ -36,6 +42,16 @@
   --border: color-mix(in oklab, var(--ink) 14%, transparent);
   --input: color-mix(in oklab, var(--ink) 18%, transparent);
   --ring: var(--c2);
+}
+
+:root:lang(ru) {
+  --face-display: var(--font-literata);
+}
+
+:root:lang(hy) {
+  --face-sans: var(--font-noto-sans-armenian);
+  --face-display: var(--font-noto-serif-armenian);
+  --face-mono: var(--font-noto-sans-armenian);
 }
 
 [data-theme="sunset"] {
@@ -103,9 +119,9 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 6px);
 
-  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-sans: var(--face-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--face-display), ui-serif, Georgia, serif;
+  --font-mono: var(--face-mono), ui-monospace, monospace;
 
   --animate-drift-slow: drift 26s ease-in-out infinite;
   --animate-drift-fast: drift 17s ease-in-out infinite reverse;

@@ -2,7 +2,9 @@
 
 import { motion } from "motion/react";
 
+import { fill } from "@/i18n/format";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/components/experience/i18n";
 import { CHAPTERS } from "@/components/experience/types";
 
 /**
@@ -22,9 +24,11 @@ export function ChapterRail({
   furthest: number;
   onSelect: (target: number) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <nav
-      aria-label="Chapters"
+      aria-label={t.nav.rail}
       className="pointer-events-none fixed inset-x-0 top-16 z-20 flex flex-col items-center gap-2 px-4 sm:top-20"
     >
       <div className="pointer-events-auto flex items-center gap-1.5">
@@ -33,15 +37,15 @@ export function ChapterRail({
           const active = i === index;
           return (
             <button
-              key={chapter.id}
+              key={chapter}
               type="button"
               disabled={!reached}
               onClick={() => onSelect(i)}
               aria-current={active ? "step" : undefined}
               aria-label={
                 reached
-                  ? `Go to chapter ${i + 1}: ${chapter.label}`
-                  : `Chapter ${i + 1} is locked`
+                  ? fill(t.nav.goTo, { n: i + 1, label: t.chapters[chapter] })
+                  : fill(t.nav.locked, { n: i + 1 })
               }
               className="group -my-2 py-2 disabled:cursor-not-allowed"
             >
@@ -67,7 +71,11 @@ export function ChapterRail({
         transition={{ duration: 0.4 }}
         className="font-mono text-[0.6rem] tracking-[0.24em] text-muted-foreground uppercase"
       >
-        {CHAPTERS[index].label} · {index + 1} of {CHAPTERS.length}
+        {fill(t.nav.position, {
+          label: t.chapters[CHAPTERS[index]],
+          n: index + 1,
+          total: CHAPTERS.length,
+        })}
       </motion.p>
     </nav>
   );

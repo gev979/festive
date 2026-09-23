@@ -1,16 +1,9 @@
 import type { BirthdayConfig } from "@/lib/config";
 
-export const CHAPTERS = [
-  { id: "seal", label: "The parcel" },
-  { id: "hero", label: "The reveal" },
-  { id: "candles", label: "The candles" },
-  { id: "reasons", label: "The reasons" },
-  { id: "cosmos", label: "The numbers" },
-  { id: "wish", label: "The wish" },
-  { id: "finale", label: "The send-off" },
-] as const;
+/** In order. Their titles live with the rest of the wording, under `chapters`. */
+export const CHAPTERS = ["seal", "hero", "candles", "reasons", "cosmos", "wish", "finale"] as const;
 
-export type ChapterId = (typeof CHAPTERS)[number]["id"];
+export type ChapterId = (typeof CHAPTERS)[number];
 
 export type ChapterProps = {
   config: BirthdayConfig;

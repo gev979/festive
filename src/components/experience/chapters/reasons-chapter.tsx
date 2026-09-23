@@ -4,10 +4,13 @@ import * as React from "react";
 import { Hand, Quote } from "lucide-react";
 import { motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 
+import { fill } from "@/i18n/format";
 import { popAt } from "@/lib/confetti";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Accented } from "@/components/experience/accented";
+import { useI18n } from "@/components/experience/i18n";
 import type { ChapterProps } from "@/components/experience/types";
 
 const FLICK_DISTANCE = 110;
@@ -18,6 +21,7 @@ const FLICK_DISTANCE = 110;
  * never runs out and nobody is forced to read all of it.
  */
 export function ReasonsChapter({ config }: ChapterProps) {
+  const { t } = useI18n();
   const cards = config.highlights;
   const [order, setOrder] = React.useState(() => cards.map((_, i) => i));
   const [seen, setSeen] = React.useState(1);
@@ -45,11 +49,10 @@ export function ReasonsChapter({ config }: ChapterProps) {
       <div className="space-y-3 text-center">
         <Badge variant="outline" className="gap-2">
           <Quote className="size-3" />
-          the receipts
+          {t.reasons.badge}
         </Badge>
         <h2 className="font-display text-2xl leading-tight font-semibold text-balance sm:text-5xl">
-          Reasons this day{" "}
-          <span className="text-gradient">matters</span>
+          <Accented text={t.reasons.title} />
         </h2>
       </div>
 
@@ -96,7 +99,7 @@ export function ReasonsChapter({ config }: ChapterProps) {
                       aria-hidden
                       className="font-display text-5xl leading-none text-[var(--c2)]/40"
                     >
-                      &ldquo;
+                      {t.quotes[0]}
                     </span>
                     {card.title && (
                       <h3 className="font-display text-xl leading-tight font-semibold sm:text-2xl">
@@ -122,7 +125,7 @@ export function ReasonsChapter({ config }: ChapterProps) {
             className="hidden gap-2 sm:inline-flex"
           >
             <Hand className="size-3.5" />
-            Next reason
+            {t.reasons.next}
           </Button>
         )}
         <div className="flex items-center gap-1.5">
@@ -137,7 +140,7 @@ export function ReasonsChapter({ config }: ChapterProps) {
           ))}
         </div>
         <p className="font-mono text-[0.6rem] tracking-[0.22em] text-muted-foreground uppercase">
-          {seen} of {cards.length} · tap or flick the card
+          {fill(t.reasons.progress, { seen, total: cards.length })}
         </p>
       </div>
     </div>

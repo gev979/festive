@@ -4,11 +4,14 @@ import * as React from "react";
 import { Mic, MicOff, Wind } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
+import { fill, plural } from "@/i18n/format";
 import { burst, cannons, popAt } from "@/lib/confetti";
 import { cn, range } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Accented } from "@/components/experience/accented";
+import { useI18n } from "@/components/experience/i18n";
 import type { ChapterProps } from "@/components/experience/types";
 
 type MicState =
@@ -30,6 +33,7 @@ const BLOW_COOLDOWN_MS = 260;
  * path always works, so a denied permission never dead-ends the experience.
  */
 export function CandlesChapter({ config, setGate, holdMusicForCapture }: ChapterProps) {
+  const { locale, t } = useI18n();
   const total = config.candles;
   const [lit, setLit] = React.useState<boolean[]>(() => range(total).map(() => true));
   const [micState, setMicState] = React.useState<MicState>("idle");
@@ -144,16 +148,16 @@ export function CandlesChapter({ config, setGate, holdMusicForCapture }: Chapter
   React.useEffect(() => {
     setGate(
       allOut
-        ? { blocked: false, label: "Why you, specifically" }
+        ? { blocked: false, label: t.continue.candles }
         : {
             blocked: true,
             label:
               remaining === total
-                ? `Blow out all ${total} candles`
-                : `${remaining} still burning`,
+                ? fill(plural(locale, total, t.candles.blowAll), { n: total })
+                : fill(plural(locale, remaining, t.candles.remaining), { n: remaining }),
           },
     );
-  }, [allOut, remaining, setGate, total, setLit]);
+  }, [allOut, locale, remaining, setGate, t, total, setLit]);
 
   // Payoff once every candle is out.
   React.useEffect(() => {
@@ -178,22 +182,17 @@ export function CandlesChapter({ config, setGate, holdMusicForCapture }: Chapter
       <div className="space-y-3">
         <Badge variant="outline" className="gap-2">
           <Wind className="size-3" />
-          {allOut ? "Wish locked in" : "One job left"}
+          {allOut ? t.candles.done : t.candles.todo}
         </Badge>
         <h2 className="font-display text-2xl leading-tight font-semibold text-balance sm:text-5xl">
-          {allOut ? (
-            <span className="text-gradient">That is going to come true</span>
-          ) : (
-            <>
-              Make it count,{" "}
-              <span className="text-gradient">{config.nickname}</span>
-            </>
-          )}
+          <Accented
+            text={
+              allOut ? t.candles.doneTitle : fill(t.candles.title, { name: config.nickname })
+            }
+          />
         </h2>
         <p className="mx-auto max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
-          {allOut
-            ? "Every candle out on the first pass. That is officially a good omen."
-            : "Tap each flame, or let the microphone hear you actually blow them out."}
+          {allOut ? t.candles.doneBody : t.candles.body}
         </p>
       </div>
 
@@ -207,31 +206,22 @@ export function CandlesChapter({ config, setGate, holdMusicForCapture }: Chapter
             className="h-12 w-full gap-2 sm:h-11 sm:w-auto"
           >
             {micState === "listening" ? <MicOff /> : <Mic />}
-            {micState === "listening" ? "Stop listening" : "Blow them out for real"}
+            {micState === "listening" ? t.candles.micStop : t.candles.micStart}
           </Button>
         )}
 
         {micState === "listening" && (
           <div className="w-full space-y-1.5">
-            <Progress value={level * 100} aria-label="Microphone level" />
+            <Progress value={level * 100} aria-label={t.candles.micLevel} />
             <p className="font-mono text-[0.6rem] tracking-[0.2em] text-muted-foreground uppercase">
-              {level > 0.5 ? "keep going" : "take a deep breath and blow"}
+              {level > 0.5 ? t.candles.loud : t.candles.quiet}
             </p>
           </div>
         )}
 
+        {/* Each failure state has its own message, keyed by the state's name. */}
         {micState !== "idle" && micState !== "listening" && (
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {micState === "denied"
-              ? "Microphone blocked — tap the flames instead, it counts just the same."
-              : micState === "unavailable"
-                ? "No microphone found on this device. Tap the flames instead."
-                : micState === "insecure"
-                  ? "The microphone needs a secure (https) connection. Tap the flames instead."
-                  : micState === "unsupported"
-                    ? "This browser will not share a microphone. Tap the flames instead."
-                    : "The microphone would not open. Tap the flames instead."}
-          </p>
+          <p className="text-xs leading-relaxed text-muted-foreground">{t.candles[micState]}</p>
         )}
       </div>
 
@@ -253,7 +243,7 @@ export function CandlesChapter({ config, setGate, holdMusicForCapture }: Chapter
               type="button"
               onClick={(event) => onCandleClick(i, event)}
               disabled={!isLit}
-              aria-label={isLit ? `Blow out candle ${i + 1}` : `Candle ${i + 1} is out`}
+              aria-label={fill(isLit ? t.candles.candleLit : t.candles.candleOut, { n: i + 1 })}
               className="group relative flex cursor-pointer flex-col items-center px-1.5 pt-8 disabled:cursor-default"
             >
               <AnimatePresence>

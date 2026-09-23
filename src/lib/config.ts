@@ -1,8 +1,14 @@
-import { CELEBRATION } from "@/celebration.config";
+import { DEFAULTS } from "@/celebration.config";
+import type { Locale } from "@/i18n/config";
+import { getMessages, type Messages } from "@/i18n";
+import { ordinal } from "@/i18n/format";
+import { getPerson } from "@/lib/people";
 
 /**
- * Turns the hardcoded values in `src/celebration.config.ts` into the shape the
- * page consumes: validated, with everything date-derived computed once.
+ * Turns one card — a person from `src/people/` (or nobody, for the standard
+ * card) in one language — into the shape the page consumes: every gap filled
+ * from the shared defaults, validated, with everything date-derived computed
+ * once.
  */
 
 export const THEMES = ["aurora", "sunset", "candy", "cosmos", "orchard"] as const;
@@ -13,20 +19,58 @@ export type Highlight = {
   body: string;
 };
 
-export type BirthdayConfig = {
+/** Everything a card says in words. A person can replace any of it, per language. */
+export type CardTexts = {
   name: string;
   nickname: string;
   from: string;
-  theme: ThemeName;
-  emojis: string[];
-  photoUrl: string | null;
-  music: boolean;
   invitation: string;
   message: string[];
   highlights: Highlight[];
   wishes: string[];
+};
+
+export type Person = {
+  /** Who this is for. Shown on the envelope and as the giant reveal. */
+  name: string;
+  /** Shorter, friendlier form for headings and the header pill. Defaults to the first word of `name`. */
+  nickname?: string;
+  /** Who the card is from — on the envelope, and signed at the end. */
+  from?: string;
+  /**
+   * Date of birth, `YYYY-MM-DD`. Drives the age, the zodiac sign, the weekday
+   * they were born on, and every number in the ledger chapter.
+   */
+  birthDate?: string | null;
+  /** Overrides the computed age. */
+  age?: number | null;
+  /** Visual theme: aurora | sunset | candy | cosmos | orchard */
+  theme?: ThemeName;
+  /** Confetti emoji. The first five are used. */
+  emojis?: string[];
+  /** Portrait shown in the reveal chapter. Any image URL. */
+  photoUrl?: string | null;
+  /** The "Happy Birthday" music box, synthesized in the browser. */
+  music?: boolean;
+  /** Candles on the cake, 1–12. Unset picks a readable handful. */
+  candles?: number | null;
+  /**
+   * Per-language wording. Whatever is set for a language wins there; anything
+   * left out falls back to the shared default texts for that language (and,
+   * for `name`, `nickname` and `from`, to the values above).
+   */
+  texts?: Partial<Record<Locale, Partial<CardTexts>>>;
+};
+
+export type BirthdayConfig = CardTexts & {
+  locale: Locale;
+  /** false on the standard card, which is not addressed to anyone in particular */
+  personal: boolean;
+  theme: ThemeName;
+  emojis: string[];
+  photoUrl: string | null;
+  music: boolean;
   candles: number;
-  siteUrl: string | null;
   /** null when no valid birth date was configured */
   birthDate: Date | null;
   age: number | null;
@@ -42,6 +86,7 @@ export type BirthdayConfig = {
   daysUntilBirthday: number | null;
   isBirthdayToday: boolean;
   zodiac: { sign: string; symbol: string } | null;
+  /** The weekday of birth, as `hero.bornOn` reads it in this language */
   weekdayBorn: string | null;
 };
 
@@ -49,7 +94,7 @@ export type BirthdayConfig = {
  * Parses `YYYY-MM-DD` at UTC noon. Noon keeps the calendar date stable no
  * matter which timezone the viewer opens the page from.
  */
-function parseBirthDate(value: string | null): Date | null {
+function parseBirthDate(value: string | null | undefined): Date | null {
   const match = value ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim()) : null;
   if (!match) return null;
   const [, year, month, day] = match;
@@ -61,44 +106,28 @@ function parseBirthDate(value: string | null): Date | null {
   return date;
 }
 
-const ZODIAC: Array<{ sign: string; symbol: string; until: [number, number] }> = [
-  { sign: "Capricorn", symbol: "♑", until: [1, 19] },
-  { sign: "Aquarius", symbol: "♒", until: [2, 18] },
-  { sign: "Pisces", symbol: "♓", until: [3, 20] },
-  { sign: "Aries", symbol: "♈", until: [4, 19] },
-  { sign: "Taurus", symbol: "♉", until: [5, 20] },
-  { sign: "Gemini", symbol: "♊", until: [6, 20] },
-  { sign: "Cancer", symbol: "♋", until: [7, 22] },
-  { sign: "Leo", symbol: "♌", until: [8, 22] },
-  { sign: "Virgo", symbol: "♍", until: [9, 22] },
-  { sign: "Libra", symbol: "♎", until: [10, 22] },
-  { sign: "Scorpio", symbol: "♏", until: [11, 21] },
-  { sign: "Sagittarius", symbol: "♐", until: [12, 21] },
-  { sign: "Capricorn", symbol: "♑", until: [12, 31] },
+type ZodiacId = keyof Messages["zodiac"];
+
+const ZODIAC: Array<{ id: ZodiacId; symbol: string; until: [number, number] }> = [
+  { id: "capricorn", symbol: "♑", until: [1, 19] },
+  { id: "aquarius", symbol: "♒", until: [2, 18] },
+  { id: "pisces", symbol: "♓", until: [3, 20] },
+  { id: "aries", symbol: "♈", until: [4, 19] },
+  { id: "taurus", symbol: "♉", until: [5, 20] },
+  { id: "gemini", symbol: "♊", until: [6, 20] },
+  { id: "cancer", symbol: "♋", until: [7, 22] },
+  { id: "leo", symbol: "♌", until: [8, 22] },
+  { id: "virgo", symbol: "♍", until: [9, 22] },
+  { id: "libra", symbol: "♎", until: [10, 22] },
+  { id: "scorpio", symbol: "♏", until: [11, 21] },
+  { id: "sagittarius", symbol: "♐", until: [12, 21] },
+  { id: "capricorn", symbol: "♑", until: [12, 31] },
 ];
 
 function zodiacFor(date: Date) {
   const month = date.getUTCMonth() + 1;
   const day = date.getUTCDate();
-  const found = ZODIAC.find(
-    ({ until: [m, d] }) => month < m || (month === m && day <= d),
-  );
-  return found ? { sign: found.sign, symbol: found.symbol } : null;
-}
-
-export function ordinal(n: number): string {
-  const mod100 = n % 100;
-  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
-  switch (n % 10) {
-    case 1:
-      return `${n}st`;
-    case 2:
-      return `${n}nd`;
-    case 3:
-      return `${n}rd`;
-    default:
-      return `${n}th`;
-  }
+  return ZODIAC.find(({ until: [m, d] }) => month < m || (month === m && day <= d)) ?? null;
 }
 
 const DAY_MS = 86_400_000;
@@ -107,15 +136,52 @@ function utcMidnight(date: Date): number {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
-export function getBirthdayConfig(now: Date = new Date()): BirthdayConfig {
-  const name = CELEBRATION.name.trim() || "Beautiful Human";
-  const birthDate = parseBirthDate(CELEBRATION.birthDate);
+/** The first value that is a non-blank string, trimmed. */
+function firstFilled(...values: Array<string | null | undefined>): string {
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed) return trimmed;
+  }
+  return "";
+}
+
+/** A list with blanks dropped, or null if nothing is left of it. */
+function filled(lines: string[] | undefined): string[] | null {
+  const kept = lines?.map((line) => line.trim()).filter(Boolean);
+  return kept?.length ? kept : null;
+}
+
+function filledHighlights(cards: Highlight[] | undefined): Highlight[] | null {
+  const kept = cards
+    ?.map(({ title, body }) => ({ title: title.trim(), body: body.trim() }))
+    .filter((card) => card.title || card.body);
+  return kept?.length ? kept : null;
+}
+
+export function getBirthdayConfig(
+  locale: Locale,
+  personKey: string,
+  now: Date = new Date(),
+): BirthdayConfig {
+  const t = getMessages(locale);
+  const person = getPerson(personKey);
+  const own = person?.texts?.[locale] ?? {};
+  const shared = t.defaults;
+
+  const name = firstFilled(own.name, person?.name, shared.name);
+  const nickname = firstFilled(
+    own.nickname,
+    person?.nickname,
+    person ? name.split(" ")[0] : shared.nickname,
+  );
+  const birthDate = parseBirthDate(person?.birthDate);
 
   const today = utcMidnight(now);
   let age: number | null = null;
   let daysAlive: number | null = null;
   let daysUntilBirthday: number | null = null;
-  let isBirthdayToday = false;
+  // Without a date there is nothing to be early for, so the day is today.
+  let isBirthdayToday = true;
 
   if (birthDate) {
     const born = utcMidnight(birthDate);
@@ -144,53 +210,49 @@ export function getBirthdayConfig(now: Date = new Date()): BirthdayConfig {
     daysUntilBirthday = Math.round((nextBirthday - today) / DAY_MS);
   }
 
-  if (typeof CELEBRATION.age === "number" && CELEBRATION.age >= 0) {
-    age = CELEBRATION.age;
+  if (typeof person?.age === "number" && person.age >= 0) {
+    age = person.age;
   }
 
   // A real candle-per-year cake stops being readable fast, so the default is a
-  // handful; `candles` in the config can push it to 12.
+  // handful; `candles` on a person can push it to 12.
+  const candlesSetting = person?.candles ?? DEFAULTS.candles;
   const candles =
-    typeof CELEBRATION.candles === "number" && CELEBRATION.candles > 0
-      ? Math.min(CELEBRATION.candles, 12)
+    typeof candlesSetting === "number" && candlesSetting > 0
+      ? Math.min(candlesSetting, 12)
       : Math.min(Math.max(age ?? 5, 3), 5);
 
-  const theme = THEMES.includes(CELEBRATION.theme) ? CELEBRATION.theme : "aurora";
-  const emojis = CELEBRATION.emojis.filter(Boolean);
-  const highlights = CELEBRATION.highlights
-    .map(({ title, body }) => ({ title: title.trim(), body: body.trim() }))
-    .filter((highlight) => highlight.title || highlight.body);
+  const themeSetting = person?.theme ?? DEFAULTS.theme;
+  const theme = THEMES.includes(themeSetting) ? themeSetting : "aurora";
+  const emojis = (person?.emojis ?? DEFAULTS.emojis).filter(Boolean);
 
-  const birthdayNumber =
-    age === null ? null : isBirthdayToday ? age : age + 1;
+  const birthdayNumber = age === null ? null : isBirthdayToday ? age : age + 1;
+  const sign = birthDate ? zodiacFor(birthDate) : null;
 
   return {
+    locale,
+    personal: person !== null,
     name,
-    nickname: CELEBRATION.nickname.trim() || (name.split(" ")[0] ?? name),
-    from: CELEBRATION.from.trim() || "Someone who thinks the world of you",
+    nickname,
+    from: firstFilled(own.from, person?.from, shared.from),
     theme,
     emojis: emojis.length ? [...emojis] : ["🎉"],
-    photoUrl: CELEBRATION.photoUrl?.trim() || null,
-    music: CELEBRATION.music,
-    invitation: CELEBRATION.invitation.trim() || "Something arrived for you today.",
-    message: CELEBRATION.message.map((line) => line.trim()).filter(Boolean),
-    highlights,
-    wishes: CELEBRATION.wishes.map((wish) => wish.trim()).filter(Boolean),
+    photoUrl: (person?.photoUrl ?? DEFAULTS.photoUrl)?.trim() || null,
+    music: person?.music ?? DEFAULTS.music,
+    invitation: firstFilled(own.invitation, shared.invitation),
+    message: filled(own.message) ?? shared.message,
+    highlights: filledHighlights(own.highlights) ?? shared.highlights,
+    wishes: filled(own.wishes) ?? shared.wishes,
     candles,
-    siteUrl: CELEBRATION.siteUrl?.trim() || null,
     birthDate,
     age,
-    ordinalAge: age === null ? null : ordinal(age),
+    ordinalAge: age === null ? null : ordinal(locale, age),
     birthdayNumber,
-    ordinalBirthday: birthdayNumber === null ? null : ordinal(birthdayNumber),
+    ordinalBirthday: birthdayNumber === null ? null : ordinal(locale, birthdayNumber),
     daysAlive,
     daysUntilBirthday,
     isBirthdayToday,
-    zodiac: birthDate ? zodiacFor(birthDate) : null,
-    weekdayBorn: birthDate
-      ? new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "UTC" }).format(
-          birthDate,
-        )
-      : null,
+    zodiac: sign ? { sign: t.zodiac[sign.id], symbol: sign.symbol } : null,
+    weekdayBorn: birthDate ? t.weekdays[birthDate.getUTCDay()] : null,
   };
 }

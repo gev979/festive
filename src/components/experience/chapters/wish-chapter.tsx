@@ -4,6 +4,7 @@ import * as React from "react";
 import { Check, Send, Sparkle, Star } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
+import { fill } from "@/i18n/format";
 import { burst } from "@/lib/confetti";
 import { cn } from "@/lib/utils";
 import { useStoredWish } from "@/hooks/use-stored-wish";
@@ -11,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Accented } from "@/components/experience/accented";
+import { useI18n } from "@/components/experience/i18n";
 import type { ChapterProps } from "@/components/experience/types";
 
 /**
@@ -19,14 +22,15 @@ import type { ChapterProps } from "@/components/experience/types";
  * device shows the wish still safe rather than an empty box.
  */
 export function WishChapter({ config, setGate }: ChapterProps) {
+  const { t } = useI18n();
   const [draft, setDraft] = React.useState("");
   const [sent, setSent] = useStoredWish();
   const [launching, setLaunching] = React.useState(false);
   const reduceMotion = useReducedMotion();
 
   React.useEffect(() => {
-    setGate({ blocked: false, label: sent ? "One last thing" : "Skip ahead" });
-  }, [sent, setGate]);
+    setGate({ blocked: false, label: sent ? t.continue.wish : t.wish.skip });
+  }, [sent, setGate, t]);
 
   const send = () => {
     const wish = draft.trim();
@@ -50,11 +54,10 @@ export function WishChapter({ config, setGate }: ChapterProps) {
       <div className="space-y-4 sm:space-y-5">
         <Badge variant="outline" className="gap-2">
           <Sparkle className="size-3" />
-          wished on your behalf
+          {t.wish.badge}
         </Badge>
         <h2 className="font-display text-2xl leading-tight font-semibold text-balance sm:text-4xl">
-          Things the year ahead{" "}
-          <span className="text-gradient">owes you</span>
+          <Accented text={t.wish.title} />
         </h2>
 
         <ul className="space-y-2 sm:space-y-2.5">
@@ -88,22 +91,21 @@ export function WishChapter({ config, setGate }: ChapterProps) {
               <div className="flex items-center gap-2 text-[var(--c2)]">
                 <Check className="size-4" />
                 <span className="font-mono text-[0.62rem] tracking-[0.24em] uppercase">
-                  sent up and kept safe
+                  {t.wish.sent}
                 </span>
               </div>
               <blockquote className="font-display text-xl leading-snug text-balance sm:text-2xl">
-                &ldquo;{sent}&rdquo;
+                {t.quotes[0]}
+                {sent}
+                {t.quotes[1]}
               </blockquote>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Kept in this browser only — nobody else can read it. The universe has,
-                however, been notified.
-              </p>
+              <p className="text-sm leading-relaxed text-muted-foreground">{t.wish.sentNote}</p>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setSent(null)}
               >
-                Write a different one
+                {t.wish.rewrite}
               </Button>
             </motion.div>
           ) : (
@@ -116,11 +118,9 @@ export function WishChapter({ config, setGate }: ChapterProps) {
             >
               <div className="space-y-1">
                 <h3 className="font-display text-xl font-semibold">
-                  Now add yours, {config.nickname}
+                  {fill(t.wish.compose, { name: config.nickname })}
                 </h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  One line, unedited. That is how wishes work.
-                </p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{t.wish.hint}</p>
               </div>
 
               <motion.div
@@ -141,8 +141,8 @@ export function WishChapter({ config, setGate }: ChapterProps) {
                     }
                   }}
                   className="min-h-20 sm:min-h-24"
-                  placeholder="This year, I want…"
-                  aria-label="Your birthday wish"
+                  placeholder={t.wish.placeholder}
+                  aria-label={t.wish.label}
                   disabled={launching}
                 />
               </motion.div>
@@ -158,7 +158,7 @@ export function WishChapter({ config, setGate }: ChapterProps) {
                   className="gap-2"
                 >
                   <Send className="size-4" />
-                  {launching ? "Launching…" : "Send it up"}
+                  {launching ? t.wish.sending : t.wish.send}
                 </Button>
               </div>
             </motion.div>

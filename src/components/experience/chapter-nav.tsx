@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/components/experience/i18n";
 
 /**
  * The bottom bar: the one thing to press to go forward, an explicit way back,
@@ -23,6 +24,8 @@ export function ChapterNav({
   onNext: () => void;
   onPrev: () => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 26 }}
@@ -36,7 +39,7 @@ export function ChapterNav({
             variant="outline"
             size="icon"
             onClick={onPrev}
-            aria-label="Back to the previous chapter"
+            aria-label={t.nav.back}
             className="glass size-12 shrink-0 sm:size-11"
           >
             <ArrowLeft />
@@ -68,11 +71,11 @@ export function ChapterNav({
       <span className="font-mono text-[0.6rem] tracking-[0.2em] text-muted-foreground/70 uppercase">
         {label ? (
           <>
-            <span className="hidden sm:inline">or use ← → keys</span>
-            <span className="sm:hidden">or swipe left and right</span>
+            <span className="hidden sm:inline">{t.nav.keys}</span>
+            <span className="sm:hidden">{t.nav.swipe}</span>
           </>
         ) : (
-          "that is the whole thing"
+          t.nav.end
         )}
       </span>
     </motion.div>

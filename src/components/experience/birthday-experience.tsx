@@ -4,14 +4,17 @@ import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import type { BirthdayConfig } from "@/lib/config";
+import type { Messages } from "@/i18n";
+import { fill } from "@/i18n/format";
 import { useMelody } from "@/hooks/use-melody";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Backdrop } from "@/components/experience/backdrop";
 import { ChapterRail } from "@/components/experience/chapter-rail";
 import { ChapterNav } from "@/components/experience/chapter-nav";
+import { I18nProvider } from "@/components/experience/i18n";
 import { SparkleTrail } from "@/components/experience/sparkle-trail";
 import { TopControls } from "@/components/experience/top-controls";
-import { CHAPTERS, type ChapterProps } from "@/components/experience/types";
+import { CHAPTERS, type ChapterId, type ChapterProps } from "@/components/experience/types";
 import { SealChapter } from "@/components/experience/chapters/seal-chapter";
 import { HeroChapter } from "@/components/experience/chapters/hero-chapter";
 import { CandlesChapter } from "@/components/experience/chapters/candles-chapter";
@@ -30,19 +33,15 @@ const VIEWS: Array<React.ComponentType<ChapterProps>> = [
   FinaleChapter,
 ];
 
-const CONTINUE_LABELS = [
-  "", // the seal chapter drives its own transition
-  "There is cake",
-  "Why you, specifically",
-  "Run the numbers",
-  "Make a wish",
-  "One last thing",
-  "", // the finale has nowhere to go
-];
-
 const SWIPE_THRESHOLD = 60;
 
-export function BirthdayExperience({ config }: { config: BirthdayConfig }) {
+export function BirthdayExperience({
+  config,
+  messages,
+}: {
+  config: BirthdayConfig;
+  messages: Messages;
+}) {
   const [index, setIndex] = React.useState(0);
   const [furthest, setFurthest] = React.useState(0);
   const [gate, setGate] = React.useState<{ blocked: boolean; label?: string }>({
@@ -98,9 +97,13 @@ export function BirthdayExperience({ config }: { config: BirthdayConfig }) {
   // Announce chapter changes for screen readers.
   React.useEffect(() => {
     if (liveRegionRef.current) {
-      liveRegionRef.current.textContent = `Chapter ${index + 1} of ${VIEWS.length}: ${CHAPTERS[index].label}`;
+      liveRegionRef.current.textContent = fill(messages.nav.announce, {
+        n: index + 1,
+        total: VIEWS.length,
+        label: messages.chapters[CHAPTERS[index]],
+      });
     }
-  }, [index]);
+  }, [index, messages]);
 
   const touchStart = React.useRef<{ x: number; y: number } | null>(null);
   const onTouchStart = (event: React.TouchEvent) => {
@@ -125,82 +128,88 @@ export function BirthdayExperience({ config }: { config: BirthdayConfig }) {
   };
 
   const Chapter = VIEWS[index];
+  const chapterId = CHAPTERS[index];
+  // The seal chapter drives its own transition and the finale has nowhere to
+  // go, so neither has a forward label.
+  const forward: Partial<Record<ChapterId, string>> = messages.continue;
   const continueLabel =
-    index === VIEWS.length - 1 ? "" : (gate.label ?? CONTINUE_LABELS[index]);
+    index === VIEWS.length - 1 ? "" : (gate.label ?? forward[chapterId] ?? "");
 
   return (
-    <TooltipProvider>
-      <Backdrop />
-      <SparkleTrail />
+    <I18nProvider locale={config.locale} messages={messages}>
+      <TooltipProvider>
+        <Backdrop />
+        <SparkleTrail />
 
-      <main
-        className="relative z-10 flex min-h-[100svh] flex-col"
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-      >
-        <div ref={liveRegionRef} className="sr-only" aria-live="polite" />
+        <main
+          className="relative z-10 flex min-h-[100svh] flex-col"
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+        >
+          <div ref={liveRegionRef} className="sr-only" aria-live="polite" />
 
-        <TopControls
-          melody={melody}
-          config={config}
-          onRestart={restart}
-          canRestart={furthest > 0}
-        />
-
-        <div className="relative flex-1">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.section
-              key={CHAPTERS[index].id}
-              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 44, filter: "blur(14px)" }}
-              animate={
-                reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, filter: "blur(0px)" }
-              }
-              exit={
-                reduceMotion
-                  ? { opacity: 0 }
-                  : { opacity: 0, y: -34, scale: 0.97, filter: "blur(14px)" }
-              }
-              transition={{ duration: reduceMotion ? 0.15 : 0.62, ease: [0.22, 1, 0.36, 1] }}
-              // Chapters are viewport-sized, but a long one (small phone,
-              // large text settings) scrolls inside itself rather than clipping.
-              className="flex min-h-[100svh] w-full items-center justify-center overflow-x-hidden overflow-y-auto px-5 pt-30 pb-36 sm:px-8 sm:pt-32 sm:pb-32"
-              aria-label={CHAPTERS[index].label}
-            >
-              <Chapter
-                config={config}
-                next={next}
-                setGate={setGate}
-                playMusic={melody.start}
-                holdMusicForCapture={melody.holdForCapture}
-              />
-            </motion.section>
-          </AnimatePresence>
-        </div>
-
-        {/* Fades behind the fixed bars, so a chapter that runs past them reads
-            as "there is more" instead of as a cut-off. */}
-        <div
-          aria-hidden
-          className="pointer-events-none fixed inset-x-0 top-0 z-[15] h-24 bg-[linear-gradient(to_bottom,var(--surface),transparent)]"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none fixed inset-x-0 bottom-0 z-[15] h-28 bg-[linear-gradient(to_top,var(--surface),transparent)]"
-        />
-
-        <ChapterRail index={index} furthest={furthest} onSelect={goTo} />
-
-        {index > 0 && (
-          <ChapterNav
-            key={`nav-${index}`}
-            label={continueLabel}
-            blocked={gate.blocked}
-            canGoBack={index > 0}
-            onNext={next}
-            onPrev={prev}
+          <TopControls
+            melody={melody}
+            config={config}
+            onRestart={restart}
+            canRestart={furthest > 0}
           />
-        )}
-      </main>
-    </TooltipProvider>
+
+          <div className="relative flex-1">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.section
+                key={chapterId}
+                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 44, filter: "blur(14px)" }}
+                animate={
+                  reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, filter: "blur(0px)" }
+                }
+                exit={
+                  reduceMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, y: -34, scale: 0.97, filter: "blur(14px)" }
+                }
+                transition={{ duration: reduceMotion ? 0.15 : 0.62, ease: [0.22, 1, 0.36, 1] }}
+                // Chapters are viewport-sized, but a long one (small phone,
+                // large text settings) scrolls inside itself rather than clipping.
+                className="flex min-h-[100svh] w-full items-center justify-center overflow-x-hidden overflow-y-auto px-5 pt-30 pb-36 sm:px-8 sm:pt-32 sm:pb-32"
+                aria-label={messages.chapters[chapterId]}
+              >
+                <Chapter
+                  config={config}
+                  next={next}
+                  setGate={setGate}
+                  playMusic={melody.start}
+                  holdMusicForCapture={melody.holdForCapture}
+                />
+              </motion.section>
+            </AnimatePresence>
+          </div>
+
+          {/* Fades behind the fixed bars, so a chapter that runs past them reads
+              as "there is more" instead of as a cut-off. */}
+          <div
+            aria-hidden
+            className="pointer-events-none fixed inset-x-0 top-0 z-[15] h-24 bg-[linear-gradient(to_bottom,var(--surface),transparent)]"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-[15] h-28 bg-[linear-gradient(to_top,var(--surface),transparent)]"
+          />
+
+          <ChapterRail index={index} furthest={furthest} onSelect={goTo} />
+
+          {index > 0 && (
+            <ChapterNav
+              key={`nav-${index}`}
+              label={continueLabel}
+              blocked={gate.blocked}
+              canGoBack={index > 0}
+              onNext={next}
+              onPrev={prev}
+            />
+          )}
+        </main>
+      </TooltipProvider>
+    </I18nProvider>
   );
 }

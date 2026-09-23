@@ -8,35 +8,87 @@ tap through, the celebrant rendered as sunrises and heartbeats, a wish you launc
 as a shooting star, and a letter under fireworks.
 
 Built with Next.js 16 (App Router), Tailwind CSS v4, shadcn/ui, Motion, and
-canvas-confetti. Everything about the birthday person is hardcoded in one file.
+canvas-confetti. Each person is one small file, every text exists in English,
+Armenian and Russian, and anything a person does not set comes from a shared
+default.
 
 ---
 
-## Make it about your person
+## Links
 
-Open **[`src/celebration.config.ts`](src/celebration.config.ts)** and edit the
-values. That file is the whole configuration surface:
+| Link | Shows |
+| --- | --- |
+| `/` | The standard card, addressed to no one in particular |
+| `/?for=miriam` | Miriam's card. The name is matched ignoring case |
+| `/hy?for=miriam` · `/ru?for=miriam` | The same card in Armenian or Russian |
+| `/hy` · `/ru` | The standard card in Armenian or Russian |
+
+A `for` that names nobody redirects to the standard card in the same
+language, and an unknown language redirects to `/`.
+
+## Add a person
+
+1. Create `src/people/<name>.ts` — copy [`miriam.ts`](src/people/miriam.ts).
+   Only `name` is required.
+2. Register it in `PEOPLE` in
+   [`src/celebration.config.ts`](src/celebration.config.ts). The key is what
+   goes in the link: `anna` → `/?for=anna`. (`everyone` is taken — it is the
+   standard card.)
+
+```ts
+export const anna: Person = {
+  name: "Anna",
+  from: "Gev",
+  birthDate: "2001-03-14",
+  theme: "sunset",
+  texts: {
+    hy: { name: "Աննա", from: "Գև" },
+    ru: { name: "Анна", from: "Гев", message: ["Первый абзац.", "Второй."] },
+  },
+};
+```
 
 | Field | What it does |
 | --- | --- |
 | `name` | Addressed on the envelope, then the giant reveal |
-| `nickname` | Used in headings and the header pill |
-| `birthDate` | `YYYY-MM-DD`. Drives age, zodiac, weekday born, and every ledger number. `null` skips them |
-| `age` | Overrides the computed age. `null` to derive it |
+| `nickname` | Used in headings and the header pill. Defaults to the first word of `name` |
 | `from` | Shown on the envelope and signed at the end |
+| `birthDate` | `YYYY-MM-DD`. Drives age, zodiac, weekday born, and every ledger number. Without it the ledger counts one ordinary year |
+| `age` | Overrides the computed age |
 | `theme` | `aurora` · `sunset` · `candy` · `cosmos` · `orchard` |
 | `emojis` | Emoji confetti (first five used) |
-| `photoUrl` | Optional portrait in the reveal chapter, or `null` |
+| `photoUrl` | Optional portrait in the reveal chapter |
 | `music` | The synthesized "Happy Birthday" music box |
-| `candles` | 1–12, or `null` for a readable handful |
-| `invitation` | The line on the sealed envelope |
-| `message` | The closing letter; each entry fades in as its own paragraph |
-| `highlights` | The card deck of reasons (`title` + `body`) |
-| `wishes` | Wishes for the year ahead |
-| `siteUrl` | Only needed for a custom domain — Vercel URLs are detected |
+| `candles` | 1–12; unset picks a readable handful |
+| `texts` | Wording per language (`en`, `hy`, `ru`): any of `name`, `nickname`, `from`, `invitation`, `message`, `highlights`, `wishes` |
 
-Nothing else needs touching. The theme drives the background, the confetti
-colors, the cake, the favicon, and the link-preview image.
+Every field except `name` is optional. What a person leaves out comes from
+`DEFAULTS` in `src/celebration.config.ts` (theme, emoji, music…) and, for
+texts, from the default wording of the language being shown. So a person with
+no `texts` at all still gets a complete card in all three languages.
+
+The theme drives the background, the confetti colors, the cake, the favicon,
+and the link-preview image.
+
+## Wording and languages
+
+Every word on the card lives in [`src/i18n/messages/`](src/i18n/messages/):
+`en.ts` is the source of truth, and `hy.ts` and `ru.ts` must have the same keys
+(TypeScript refuses to build otherwise). Its `defaults` block is both the
+standard card and the fallback for every person — edit a letter there and it
+changes for everyone who has not written their own.
+
+In the messages, `{name}` placeholders are filled in by the page and `*…*`
+marks the words drawn in the accent gradient. Count-dependent strings list one
+form per plural category (`one`/`few`/`many`/`other` in Russian). The Russian
+and Armenian texts keep names in the nominative, so no name ever has to be
+declined, and the Russian avoids forms that depend on the reader's gender.
+
+To add another language: add its code to `LOCALES` in
+`src/i18n/config.ts`, create `src/i18n/messages/<code>.ts`, and register it in
+`src/i18n/index.ts`. If its script is not Latin or Cyrillic, it also needs
+fonts (see the layout and `globals.css`) and a font for the preview images
+(`src/lib/og-fonts.ts`).
 
 ## Run it locally
 
@@ -62,22 +114,31 @@ npm, pnpm, and yarn all work too; the repo ships a `bun.lock`.
 3. Accept the detected defaults (Next.js, `bun install`, `bun run build`) and
    deploy. No environment variables are required.
 
-To change the celebration later, edit `src/celebration.config.ts` and push —
-Vercel rebuilds automatically.
+To add or change a card later, edit `src/people/` (and register new people in
+`src/celebration.config.ts`) and push — Vercel rebuilds automatically.
 
 ## How it is put together
 
 ```
 src/
-  celebration.config.ts        the only file you edit
+  celebration.config.ts        who has a card, shared defaults, site URL
+  people/                      one file per person
+  proxy.ts                     maps /, /hy, /ru and ?for= onto the cards
+  i18n/
+    config.ts                  the languages
+    messages/                  every word on the card: en (source), hy, ru
+    format.ts                  placeholders, plurals, ordinals
   app/
-    layout.tsx                 fonts, theme attribute, metadata
-    page.tsx                   reads the config, renders the experience
-    globals.css                design tokens + the five themes
-    opengraph-image.tsx        link preview, generated from the config
-    icon.tsx                   favicon: the initial on the theme gradient
+    globals.css                design tokens, the five themes, fonts per language
+    [lang]/[person]/
+      layout.tsx               fonts, language + theme on <html>, metadata
+      page.tsx                 resolves the card, renders the experience
+      opengraph-image.tsx      link preview, per person and language
+      icon.tsx                 favicon: the initial on the theme gradient
   lib/
-    config.ts                  validates the config, derives dates and numbers
+    config.ts                  merges person + defaults, derives dates and numbers
+    people.ts                  matches ?for= values to people
+    og-fonts.ts                Armenian glyphs for the preview images
     confetti.ts                theme-aware bursts, cannons, emoji, fireworks
     palette.ts                 hex mirror of the CSS themes (for the OG image)
   hooks/
@@ -93,6 +154,18 @@ src/
 
 ### Details worth knowing
 
+- **Short links, static cards.** Every person in every language is
+  prerendered at `/[lang]/[person]` (the standard card is `/[lang]/everyone`).
+  `src/proxy.ts` rewrites the short link onto it — `/hy?for=miriam` is served
+  from `/hy/miriam` — so the address bar keeps the link exactly as it was sent,
+  and the language and theme can sit on `<html>`, where dialogs rendered in
+  portals still see them.
+- **Fonts per script.** Fraunces has no Cyrillic and none of the Latin faces
+  has Armenian, so Russian headings use Literata and Armenian uses Noto Sans
+  and Noto Serif Armenian. Those files are not preloaded, so only a page in
+  that language downloads them. `next/og` draws with a Latin + Cyrillic face
+  only, so Armenian preview images fetch an Armenian subset from Google Fonts
+  when they are generated.
 - **No media assets.** The soundtrack is synthesized with the Web Audio API and
   the cake, envelope, and balloons are inline SVG, so the deploy is tiny and
   nothing 404s.

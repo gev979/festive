@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useI18n } from "@/components/experience/i18n";
 import type { ChapterProps } from "@/components/experience/types";
 
 /**
@@ -23,6 +24,8 @@ import type { ChapterProps } from "@/components/experience/types";
  * up spending an extra minute.
  */
 export function FinaleChapter({ config }: ChapterProps) {
+  const { t } = useI18n();
+
   React.useEffect(() => {
     const stop = fireworks(4600);
     glitterFall(9000);
@@ -50,7 +53,7 @@ export function FinaleChapter({ config }: ChapterProps) {
       >
         <Badge variant="accent" className="gap-2">
           <PartyPopper className="size-3" />
-          the part that is actually true
+          {t.finale.badge}
         </Badge>
       </motion.div>
 
@@ -83,7 +86,7 @@ export function FinaleChapter({ config }: ChapterProps) {
       >
         <div className="space-y-1">
           <p className="font-mono text-[0.6rem] tracking-[0.28em] text-muted-foreground uppercase">
-            with everything
+            {t.finale.signoff}
           </p>
           <p className="font-display text-2xl font-semibold text-[var(--c3)] sm:text-3xl">
             {config.from}
@@ -97,51 +100,37 @@ export function FinaleChapter({ config }: ChapterProps) {
             className="gap-2"
           >
             <PartyPopper className="size-4" />
-            Again, louder
+            {t.finale.again}
           </Button>
 
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
                 <ScrollText className="size-4" />
-                The fine print
+                {t.finale.finePrint}
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent closeLabel={t.finale.close}>
               <DialogHeader>
-                <DialogTitle>Terms of celebration</DialogTitle>
-                <DialogDescription>
-                  Non-negotiable, effective immediately.
-                </DialogDescription>
+                <DialogTitle>{t.finale.termsTitle}</DialogTitle>
+                <DialogDescription>{t.finale.termsNote}</DialogDescription>
               </DialogHeader>
               <ol className="space-y-3 text-left text-sm leading-relaxed text-foreground/85">
-                <li>
-                  <span className="font-mono text-[var(--c2)]">01 ·</span> Today, every
-                  opinion you have about how the day should go wins automatically.
-                </li>
-                <li>
-                  <span className="font-mono text-[var(--c2)]">02 ·</span> Cake before
-                  noon is reclassified as breakfast, retroactively, for the whole week.
-                </li>
-                <li>
-                  <span className="font-mono text-[var(--c2)]">03 ·</span> Any sentence
-                  starting &ldquo;I should probably…&rdquo; is void until tomorrow.
-                </li>
-                <li>
-                  <span className="font-mono text-[var(--c2)]">04 ·</span> The wish you
-                  made is now the responsibility of the year ahead. It has been informed.
-                </li>
-                <li>
-                  <span className="font-mono text-[var(--c2)]">05 ·</span> This page can be
-                  reopened whenever you want, no occasion required.
-                </li>
+                {t.finale.terms.map((term, i) => (
+                  <li key={i}>
+                    <span className="font-mono text-[var(--c2)]">
+                      {String(i + 1).padStart(2, "0")} ·
+                    </span>{" "}
+                    {term}
+                  </li>
+                ))}
               </ol>
             </DialogContent>
           </Dialog>
         </div>
 
         <p className="font-mono text-[0.6rem] tracking-[0.22em] text-muted-foreground/80 uppercase">
-          tap anywhere · it throws confetti
+          {t.finale.tapHint}
         </p>
       </motion.div>
     </div>

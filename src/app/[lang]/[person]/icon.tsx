@@ -1,16 +1,19 @@
 import { ImageResponse } from "next/og";
 
-import { getBirthdayConfig } from "@/lib/config";
+import { fontsFor } from "@/lib/og-fonts";
 import { PALETTES } from "@/lib/palette";
+import { cardParams, loadCard, type CardParams } from "./card";
 
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
-/** Favicon: the celebrant's initial on the active theme's gradient. */
-export default async function Icon() {
-  const config = getBirthdayConfig();
+export const generateStaticParams = cardParams;
+
+/** Favicon: the celebrant's initial, in the card's language, on its theme's gradient. */
+export default async function Icon({ params }: { params: CardParams }) {
+  const config = await loadCard(params);
   const palette = PALETTES[config.theme];
-  const initial = config.name.trim().charAt(0).toUpperCase() || "B";
+  const initial = config.name.charAt(0).toUpperCase() || "B";
 
   return new ImageResponse(
     (
@@ -32,6 +35,6 @@ export default async function Icon() {
         {initial}
       </div>
     ),
-    size,
+    { ...size, fonts: await fontsFor(initial) },
   );
 }
