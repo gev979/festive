@@ -4,7 +4,7 @@ import { DEFAULT_LOCALE, isLocale } from "@/i18n/config";
 import { EVERYONE, findPersonKey } from "@/lib/people";
 
 /**
- * Links stay short and readable — `/`, `/hy`, `/ru?for=miriam` — while every
+ * Links stay short and readable — `/`, `/hy`, `/ru?for=dia` — while every
  * card is prerendered at `/[lang]/[person]`. This maps one onto the other,
  * with a rewrite, so the address bar keeps the link as it was shared.
  *

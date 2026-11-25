@@ -19,8 +19,8 @@ default.
 | Link | Shows |
 | --- | --- |
 | `/` | The standard card, addressed to no one in particular |
-| `/?for=miriam` | Miriam's card. The name is matched ignoring case |
-| `/hy?for=miriam` · `/ru?for=miriam` | The same card in Armenian or Russian |
+| `/?for=dia` | Dia's card. The name is matched ignoring case |
+| `/hy?for=dia` · `/ru?for=dia` | The same card in Armenian or Russian |
 | `/hy` · `/ru` | The standard card in Armenian or Russian |
 
 A `for` that names nobody redirects to the standard card in the same
@@ -28,7 +28,7 @@ language, and an unknown language redirects to `/`.
 
 ## Add a person
 
-1. Create `src/people/<name>.ts` — copy [`miriam.ts`](src/people/miriam.ts).
+1. Create `src/people/<name>.ts` — copy [`dia.ts`](src/people/dia.ts).
    Only `name` is required.
 2. Register it in `PEOPLE` in
    [`src/celebration.config.ts`](src/celebration.config.ts). The key is what
@@ -156,8 +156,8 @@ src/
 
 - **Short links, static cards.** Every person in every language is
   prerendered at `/[lang]/[person]` (the standard card is `/[lang]/everyone`).
-  `src/proxy.ts` rewrites the short link onto it — `/hy?for=miriam` is served
-  from `/hy/miriam` — so the address bar keeps the link exactly as it was sent,
+  `src/proxy.ts` rewrites the short link onto it — `/hy?for=dia` is served
+  from `/hy/dia` — so the address bar keeps the link exactly as it was sent,
   and the language and theme can sit on `<html>`, where dialogs rendered in
   portals still see them.
 - **Fonts per script.** Fraunces has no Cyrillic and none of the Latin faces

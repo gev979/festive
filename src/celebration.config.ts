@@ -1,5 +1,5 @@
 import type { Person, ThemeName } from "@/lib/config";
-import { miriam } from "@/people/miriam";
+import { dia } from "@/people/dia";
 
 /**
  * ─────────────────────────────────────────────────────────────────────────────
@@ -8,9 +8,9 @@ import { miriam } from "@/people/miriam";
  * Each person lives in their own file in `src/people/`. The key they are
  * registered under here is what goes in the link, matched ignoring case:
  *
- *   /?for=miriam      English
- *   /hy?for=miriam    Armenian
- *   /ru?for=miriam    Russian
+ *   /?for=dia      English
+ *   /hy?for=dia    Armenian
+ *   /ru?for=dia    Russian
  *
  * A link without `for` shows the standard card; a `for` that is not listed
  * here redirects to it. Keys are lowercase letters, digits and dashes, and
@@ -18,7 +18,7 @@ import { miriam } from "@/people/miriam";
  * ─────────────────────────────────────────────────────────────────────────────
  */
 export const PEOPLE: Record<string, Person> = {
-  miriam,
+  dia,
 };
 
 /**
